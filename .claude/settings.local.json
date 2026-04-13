@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(claude-api)",
+      "Bash(npm --version)",
+      "Read(//c/Users/Ryder Tetreault/Websites/**)",
+      "Bash(cp screen-app-temp/.gitignore screen-app-temp/package.json screen-app-temp/package-lock.json screen-app-temp/tsconfig.json screen-app/)",
+      "Bash(cp -r screen-app-temp/.vscode screen-app/)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npm ls:*)",
+      "Bash(npx expo:*)",
+      "WebFetch(domain:www.rydertetreault.dev)",
+      "Bash(node:*)",
+      "Bash(mv icon.png.png icon.png)",
+      "Bash(cp icon.png splash-icon.png)",
+      "Bash(cp icon.png adaptive-icon.png)",
+      "Bash(cp icon.png favicon.png)"
+    ]
+  }
+}

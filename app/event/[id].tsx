@@ -1,0 +1,355 @@
+import { useCallback, useState } from "react";
+import {
+  StyleSheet,
+  Text,
+  View,
+  TouchableOpacity,
+  TextInput,
+  Alert,
+  ScrollView,
+  Platform,
+} from "react-native";
+import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
+import { format, parseISO } from "date-fns";
+import { ScheduleEvent, EventCategory } from "@/lib/types";
+import { getEventById, updateEvent, deleteEvent } from "@/lib/storage";
+import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/lib/constants";
+import CategoryPicker from "@/components/CategoryPicker";
+import PickerField from "@/components/PickerField";
+
+export default function EventDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const [event, setEvent] = useState<ScheduleEvent | null>(null);
+  const [editing, setEditing] = useState(false);
+
+  // Editable fields
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState(new Date());
+  const [startTime, setStartTime] = useState(new Date());
+  const [endTime, setEndTime] = useState(new Date());
+  const [category, setCategory] = useState<EventCategory>("other");
+  const [notes, setNotes] = useState("");
+
+  useFocusEffect(
+    useCallback(() => {
+      loadEvent();
+    }, [id])
+  );
+
+  async function loadEvent() {
+    if (!id) return;
+    const found = await getEventById(id);
+    if (found) {
+      setEvent(found);
+      setTitle(found.title);
+      setDate(parseISO(found.date));
+      setStartTime(parseISO(found.startTime));
+      setEndTime(parseISO(found.endTime));
+      setCategory(found.category);
+      setNotes(found.notes || "");
+    }
+  }
+
+  function resetEdits() {
+    if (!event) return;
+    setTitle(event.title);
+    setDate(parseISO(event.date));
+    setStartTime(parseISO(event.startTime));
+    setEndTime(parseISO(event.endTime));
+    setCategory(event.category);
+    setNotes(event.notes || "");
+    setEditing(false);
+  }
+
+  async function handleSave() {
+    if (!event) return;
+    if (!title.trim()) {
+      Alert.alert("Error", "Title is required");
+      return;
+    }
+
+    const dateStr = format(date, "yyyy-MM-dd");
+    const start = new Date(date);
+    start.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
+    const end = new Date(date);
+    end.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
+
+    if (end <= start) {
+      Alert.alert("Invalid Times", "End time must be after start time.");
+      return;
+    }
+
+    await updateEvent(event.id, {
+      title: title.trim(),
+      date: dateStr,
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+      category,
+      notes: notes.trim() || undefined,
+    });
+    setEditing(false);
+    await loadEvent();
+  }
+
+  async function handleDelete() {
+    if (!event) return;
+    Alert.alert("Delete Event", `Delete "${event.title}"?`, [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          await deleteEvent(event.id);
+          router.back();
+        },
+      },
+    ]);
+  }
+
+  if (!event) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.loadingText}>Loading...</Text>
+      </View>
+    );
+  }
+
+  const displayStart = format(parseISO(event.startTime), "h:mm a");
+  const displayEnd = format(parseISO(event.endTime), "h:mm a");
+  const dateDisplay = format(parseISO(event.date), "EEEE, MMMM d, yyyy");
+  const color = CATEGORY_COLORS[event.category];
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      {/* Color banner */}
+      <View style={[styles.banner, { backgroundColor: color }]}>
+        <Text style={styles.bannerCategory}>
+          {CATEGORY_LABELS[event.category]}
+        </Text>
+        <Text style={styles.bannerSource}>
+          {event.source === "ai" ? "From screenshot" : "Manual entry"}
+        </Text>
+      </View>
+
+      {editing ? (
+        <View style={styles.form}>
+          <Text style={styles.label}>Title</Text>
+          <TextInput
+            style={styles.input}
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Event title"
+          />
+
+          <PickerField
+            label="Date"
+            value={date}
+            mode="date"
+            onChange={setDate}
+          />
+
+          <PickerField
+            label="Start Time"
+            value={startTime}
+            mode="time"
+            onChange={setStartTime}
+          />
+
+          <PickerField
+            label="End Time"
+            value={endTime}
+            mode="time"
+            onChange={setEndTime}
+          />
+
+          <Text style={styles.label}>Category</Text>
+          <CategoryPicker selected={category} onSelect={setCategory} />
+
+          <Text style={[styles.label, { marginTop: 16 }]}>Notes</Text>
+          <TextInput
+            style={[styles.input, styles.notesInput]}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Optional notes"
+            multiline
+          />
+
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.button, styles.cancelButton]}
+              onPress={resetEdits}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.saveButton]}
+              onPress={handleSave}
+            >
+              <Text style={styles.saveButtonText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.details}>
+          <Text style={styles.eventTitle}>{event.title}</Text>
+          <Text style={styles.dateText}>{dateDisplay}</Text>
+          <Text style={styles.timeText}>
+            {displayStart} - {displayEnd}
+          </Text>
+
+          {event.notes ? (
+            <View style={styles.notesSection}>
+              <Text style={styles.label}>Notes</Text>
+              <Text style={styles.notesText}>{event.notes}</Text>
+            </View>
+          ) : null}
+
+          <View style={styles.buttonRow}>
+            <TouchableOpacity
+              style={[styles.button, styles.editButton]}
+              onPress={() => setEditing(true)}
+            >
+              <Text style={styles.editButtonText}>Edit</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.deleteButton]}
+              onPress={handleDelete}
+            >
+              <Text style={styles.deleteButtonText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#fff",
+  },
+  content: {
+    paddingBottom: 40,
+  },
+  loadingText: {
+    textAlign: "center",
+    marginTop: 40,
+    fontSize: 16,
+    color: "#888",
+  },
+  banner: {
+    padding: 20,
+    paddingTop: Platform.OS === "ios" ? 12 : 20,
+  },
+  bannerCategory: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  bannerSource: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 12,
+    marginTop: 4,
+  },
+  details: {
+    paddingHorizontal: 20,
+  },
+  form: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  eventTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginTop: 20,
+  },
+  dateText: {
+    fontSize: 16,
+    color: "#555",
+    marginTop: 8,
+  },
+  timeText: {
+    fontSize: 18,
+    color: "#333",
+    marginTop: 4,
+    fontWeight: "500",
+  },
+  notesSection: {
+    marginTop: 20,
+  },
+  notesText: {
+    fontSize: 15,
+    color: "#555",
+    lineHeight: 22,
+  },
+  label: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#888",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginTop: 20,
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    marginBottom: 4,
+  },
+  notesInput: {
+    height: 100,
+    textAlignVertical: "top",
+  },
+  buttonRow: {
+    flexDirection: "row",
+    marginTop: 24,
+    gap: 12,
+  },
+  button: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  editButton: {
+    backgroundColor: "#4CAF50",
+  },
+  editButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  deleteButton: {
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#F44336",
+  },
+  deleteButtonText: {
+    color: "#F44336",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  saveButton: {
+    backgroundColor: "#4CAF50",
+  },
+  saveButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  cancelButton: {
+    backgroundColor: "#f5f5f5",
+  },
+  cancelButtonText: {
+    color: "#555",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+});
