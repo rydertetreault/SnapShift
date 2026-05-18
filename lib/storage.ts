@@ -31,10 +31,17 @@ export async function updateEvent(
   if (index === -1) return;
   events[index] = { ...events[index], ...updates };
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+  const { mirrorSnapShiftEvents } = await import("./calendar/mirror");
+  mirrorSnapShiftEvents().catch(() => {});
 }
 
 export async function deleteEvent(id: string): Promise<void> {
   const events = await getAllEvents();
+  const event = events.find((e) => e.id === id);
+  if (event) {
+    const { unmirrorEvent } = await import("./calendar/mirror");
+    await unmirrorEvent(event);
+  }
   const filtered = events.filter((e) => e.id !== id);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
 }
@@ -55,6 +62,11 @@ export async function getEventsBySeriesId(
 
 export async function deleteSeries(seriesId: string): Promise<void> {
   const events = await getAllEvents();
+  const removed = events.filter((e) => e.seriesId === seriesId);
+  if (removed.length > 0) {
+    const { unmirrorEvent } = await import("./calendar/mirror");
+    for (const e of removed) await unmirrorEvent(e);
+  }
   const filtered = events.filter((e) => e.seriesId !== seriesId);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
 }
@@ -64,6 +76,13 @@ export async function deleteFutureInSeries(
   fromDate: string
 ): Promise<void> {
   const events = await getAllEvents();
+  const removed = events.filter(
+    (e) => e.seriesId === seriesId && e.date >= fromDate
+  );
+  if (removed.length > 0) {
+    const { unmirrorEvent } = await import("./calendar/mirror");
+    for (const e of removed) await unmirrorEvent(e);
+  }
   const filtered = events.filter(
     (e) => e.seriesId !== seriesId || e.date < fromDate
   );
@@ -82,6 +101,8 @@ export async function updateSeries(
     return { ...e, ...updates };
   });
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  const { mirrorSnapShiftEvents } = await import("./calendar/mirror");
+  mirrorSnapShiftEvents().catch(() => {});
 }
 
 export async function upsertIosEvents(events: ScheduleEvent[]): Promise<void> {
