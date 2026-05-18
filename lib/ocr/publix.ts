@@ -37,7 +37,7 @@ function normalizeTime(raw: string): string {
   return raw.trim();
 }
 
-function parseOcrText(text: string) {
+export function parseOcrText(text: string) {
   const shifts: {
     dayOfWeek: string;
     dayOfMonth?: number;
@@ -83,15 +83,37 @@ function parseOcrText(text: string) {
       dayOfMonth = parseInt(dayMatch[2]);
     } else {
       const dayOnly = line.match(dayOnlyPattern);
-      if (dayOnly) dayName = fullDayNames[dayOnly[1].toLowerCase()];
+      if (dayOnly) {
+        dayName = fullDayNames[dayOnly[1].toLowerCase()];
+        // OCR.space frequently splits the badge into two lines:
+        //   "Mon"
+        //   "6"
+        // Look at the next 1-2 lines for a bare 1- or 2-digit number.
+        // Stop early if we hit another day name or a time range.
+        for (let j = 1; j <= 2 && i + j < lines.length; j++) {
+          const ahead = lines[i + j];
+          if (dayOnlyPattern.test(ahead)) break;
+          if (timeRangePattern.test(ahead)) break;
+          const numMatch = ahead.match(/^(\d{1,2})$/);
+          if (numMatch) {
+            dayOfMonth = parseInt(numMatch[1]);
+            break;
+          }
+        }
+      }
     }
     if (!dayName) continue;
 
     let timeMatch = line.match(timeRangePattern);
     if (!timeMatch) {
+      // Look ahead a few lines for a time range. Don't bail on a stray
+      // "Not Scheduled" line: OCR.space sometimes reorders content so a
+      // "Not Scheduled" from an adjacent day lands between this day's
+      // badge and its actual time, and bailing would drop a real shift.
+      // The day-name break at j>1 still prevents us from grabbing the
+      // next day's time.
       for (let j = 1; j <= 4 && i + j < lines.length; j++) {
         const ahead = lines[i + j];
-        if (ahead.toLowerCase().includes("not scheduled")) break;
         if (dayOnlyPattern.test(ahead) && j > 1) break;
         timeMatch = ahead.match(timeRangePattern);
         if (timeMatch) break;

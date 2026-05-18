@@ -1,11 +1,18 @@
-import PickerField from "@/components/PickerField";
 import ShiftReviewCard from "@/components/ShiftReviewCard";
 import { parseScheduleImage } from "@/lib/ocr";
 import { reportFailedScreenshot } from "@/lib/ocr/vision";
 import { resolveDates } from "@/lib/ocr/weekResolve";
 import { saveMultipleEvents } from "@/lib/storage";
 import { ExtractedShift, ScheduleEvent } from "@/lib/types";
-import { addDays, format, parse, parseISO } from "date-fns";
+import {
+  addDays,
+  addWeeks,
+  format,
+  parse,
+  parseISO,
+  startOfWeek,
+  subWeeks,
+} from "date-fns";
 import { File } from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
@@ -28,9 +35,9 @@ export default function UploadScreen() {
   const [step, setStep] = useState<Step>("pick");
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [shifts, setShifts] = useState<ExtractedShift[]>([]);
-  const [detectedWeek, setDetectedWeek] = useState<string | null>(null);
-  const [showWeekOverride, setShowWeekOverride] = useState(false);
-  const [overrideWeek, setOverrideWeek] = useState<Date>(new Date());
+  const [weekStart, setWeekStart] = useState<Date>(() =>
+    startOfWeek(new Date(), { weekStartsOn: 6 })
+  );
   const [failedImage, setFailedImage] = useState<{
     base64: string;
     mimeType: string;
@@ -102,9 +109,7 @@ export default function UploadScreen() {
         return;
       }
 
-      setDetectedWeek(result.weekStart);
-      setOverrideWeek(parseISO(result.weekStart));
-      setShowWeekOverride(false);
+      setWeekStart(parseISO(result.weekStart));
       setShifts(result.shifts);
       setStep("review");
     } catch (error: any) {
@@ -128,11 +133,10 @@ export default function UploadScreen() {
     setShifts(shifts.filter((_, i) => i !== index));
   }
 
-  function handleOverrideWeekChange(d: Date) {
-    setOverrideWeek(d);
-    const iso = format(d, "yyyy-MM-dd");
-    setDetectedWeek(iso);
-    // Re-resolve dates for the existing shifts using the new week start.
+  function changeWeek(next: Date) {
+    setWeekStart(next);
+    if (shifts.length === 0) return;
+    const iso = format(next, "yyyy-MM-dd");
     const reset = shifts.map((s) => ({ ...s, date: "" }));
     setShifts(resolveDates(reset, iso));
   }
@@ -193,8 +197,7 @@ export default function UploadScreen() {
     setStep("pick");
     setImageUri(null);
     setShifts([]);
-    setDetectedWeek(null);
-    setShowWeekOverride(false);
+    setWeekStart(startOfWeek(new Date(), { weekStartsOn: 6 }));
     setFailedImage(null);
   }
 
@@ -226,6 +229,28 @@ export default function UploadScreen() {
       contentContainerStyle={styles.content}
     >
       <Text style={styles.heading}>Upload Schedule</Text>
+
+      <Text style={styles.label}>Schedule Week (Sat - Fri)</Text>
+      <View style={styles.weekSelector}>
+        <TouchableOpacity
+          onPress={() => changeWeek(subWeeks(weekStart, 1))}
+          style={styles.weekArrow}
+          activeOpacity={0.6}
+        >
+          <Text style={styles.weekArrowText}>{"<"}</Text>
+        </TouchableOpacity>
+        <Text style={styles.weekLabel}>
+          {format(weekStart, "MMM d")} -{" "}
+          {format(addDays(weekStart, 6), "MMM d, yyyy")}
+        </Text>
+        <TouchableOpacity
+          onPress={() => changeWeek(addWeeks(weekStart, 1))}
+          style={styles.weekArrow}
+          activeOpacity={0.6}
+        >
+          <Text style={styles.weekArrowText}>{">"}</Text>
+        </TouchableOpacity>
+      </View>
 
       {step === "pick" && (
         <>
@@ -294,31 +319,6 @@ export default function UploadScreen() {
 
       {step === "review" && (
         <>
-          {detectedWeek && (
-            <View style={styles.weekBanner}>
-              <Text style={styles.weekBannerText}>
-                Detected week:{" "}
-                {format(parseISO(detectedWeek), "MMM d")} -{" "}
-                {format(addDays(parseISO(detectedWeek), 6), "MMM d, yyyy")}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setShowWeekOverride((v) => !v)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.weekBannerLink}>Wrong week?</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {showWeekOverride && (
-            <PickerField
-              label="Override week (Saturday)"
-              value={overrideWeek}
-              mode="date"
-              onChange={handleOverrideWeekChange}
-            />
-          )}
-
           <Text style={styles.reviewHeading}>
             Found {shifts.length} shift{shifts.length !== 1 ? "s" : ""}
           </Text>
@@ -403,27 +403,35 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     color: "#222",
   },
-  weekBanner: {
+  label: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#888",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 8,
+  },
+  weekSelector: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     backgroundColor: "#f5f5f5",
     borderRadius: 10,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    marginBottom: 16,
+    padding: 4,
+    marginBottom: 24,
   },
-  weekBannerText: {
-    fontSize: 14,
+  weekArrow: {
+    padding: 12,
+  },
+  weekArrowText: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#4CAF50",
+  },
+  weekLabel: {
+    fontSize: 15,
     fontWeight: "600",
     color: "#333",
-    flexShrink: 1,
-    marginRight: 12,
-  },
-  weekBannerLink: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#4CAF50",
   },
   preview: {
     width: "100%",
