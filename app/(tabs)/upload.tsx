@@ -1,5 +1,5 @@
 import ShiftReviewCard from "@/components/ShiftReviewCard";
-import { parseScheduleImage } from "@/lib/gemini";
+import { parseScheduleImage } from "@/lib/ocr";
 import { saveMultipleEvents } from "@/lib/storage";
 import { ExtractedShift, ScheduleEvent } from "@/lib/types";
 import {
@@ -84,9 +84,9 @@ export default function UploadScreen() {
         else if (lower.endsWith(".gif")) mimeType = "image/gif";
       }
 
-      const extracted = await parseScheduleImage(base64, mimeType, weekStart);
+      const result = await parseScheduleImage(base64, mimeType);
 
-      if (extracted.length === 0) {
+      if (result.shifts.length === 0) {
         Alert.alert(
           "No Shifts Found",
           "No shifts were detected in this image. Try a clearer photo."
@@ -95,7 +95,7 @@ export default function UploadScreen() {
         return;
       }
 
-      setShifts(extracted);
+      setShifts(result.shifts);
       setStep("review");
     } catch (error: any) {
       Alert.alert("Error", error.message || "Something went wrong.");
