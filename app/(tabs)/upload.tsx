@@ -1,6 +1,7 @@
 import PickerField from "@/components/PickerField";
 import ShiftReviewCard from "@/components/ShiftReviewCard";
 import { parseScheduleImage } from "@/lib/ocr";
+import { reportFailedScreenshot } from "@/lib/ocr/vision";
 import { resolveDates } from "@/lib/ocr/weekResolve";
 import { saveMultipleEvents } from "@/lib/storage";
 import { ExtractedShift, ScheduleEvent } from "@/lib/types";
@@ -30,6 +31,13 @@ export default function UploadScreen() {
   const [detectedWeek, setDetectedWeek] = useState<string | null>(null);
   const [showWeekOverride, setShowWeekOverride] = useState(false);
   const [overrideWeek, setOverrideWeek] = useState<Date>(new Date());
+  const [failedImage, setFailedImage] = useState<{
+    base64: string;
+    mimeType: string;
+    error: string;
+    preview?: string;
+  } | null>(null);
+  const [reportSending, setReportSending] = useState(false);
 
   async function pickImage(useCamera: boolean) {
     const permission = useCamera
@@ -63,14 +71,17 @@ export default function UploadScreen() {
 
   async function processImage(uri: string, pickerMimeType?: string | null) {
     setStep("loading");
+    setFailedImage(null);
+
+    // Hoist base64/mimeType so the catch block can attach them to the failure state.
+    let base64 = "";
+    let mimeType = pickerMimeType || "image/jpeg";
 
     try {
-      // Read image as base64
       const file = new File(uri);
-      const base64 = await file.base64();
+      base64 = await file.base64();
 
-      // Use mime type from picker, fall back to detection from URI
-      let mimeType = pickerMimeType || "image/jpeg";
+      // Use mime type from picker, fall back to detection from URI.
       if (!pickerMimeType) {
         const lower = uri.toLowerCase();
         if (lower.endsWith(".png")) mimeType = "image/png";
@@ -81,10 +92,12 @@ export default function UploadScreen() {
       const result = await parseScheduleImage(base64, mimeType);
 
       if (result.shifts.length === 0) {
-        Alert.alert(
-          "No Shifts Found",
-          "No shifts were detected in this image. Try a clearer photo."
-        );
+        setFailedImage({
+          base64,
+          mimeType,
+          error: "No shifts were detected in this image.",
+          preview: result.rawOcrText?.substring(0, 500),
+        });
         setStep("pick");
         return;
       }
@@ -95,7 +108,12 @@ export default function UploadScreen() {
       setShifts(result.shifts);
       setStep("review");
     } catch (error: any) {
-      Alert.alert("Error", error.message || "Something went wrong.");
+      setFailedImage({
+        base64,
+        mimeType,
+        error: error?.message || "Unknown error",
+        preview: undefined,
+      });
       setStep("pick");
     }
   }
@@ -169,6 +187,29 @@ export default function UploadScreen() {
     setShifts([]);
     setDetectedWeek(null);
     setShowWeekOverride(false);
+    setFailedImage(null);
+  }
+
+  async function handleReportFailed() {
+    if (!failedImage || reportSending) return;
+    setReportSending(true);
+    try {
+      await reportFailedScreenshot(
+        failedImage.base64,
+        failedImage.mimeType,
+        failedImage.error,
+        failedImage.preview ?? ""
+      );
+      Alert.alert("Thanks", "We'll use this to make the next version better.");
+      setFailedImage(null);
+    } catch (err: any) {
+      Alert.alert(
+        "Could not send",
+        err?.message || "Please try again later."
+      );
+    } finally {
+      setReportSending(false);
+    }
   }
 
   return (
@@ -183,6 +224,28 @@ export default function UploadScreen() {
           {/* Image preview if we have one from a previous attempt */}
           {imageUri && (
             <Image source={{ uri: imageUri }} style={styles.preview} />
+          )}
+
+          {failedImage && (
+            <View style={styles.reportCard}>
+              <Text style={styles.reportHeading}>
+                Couldn't read that schedule
+              </Text>
+              <Text style={styles.reportBody}>{failedImage.error}</Text>
+              <TouchableOpacity
+                style={[
+                  styles.reportButton,
+                  reportSending && styles.reportButtonDisabled,
+                ]}
+                onPress={handleReportFailed}
+                disabled={reportSending}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.reportButtonText}>
+                  {reportSending ? "Sending..." : "Send screenshot to improve"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           <TouchableOpacity
@@ -444,5 +507,39 @@ const styles = StyleSheet.create({
     color: "#888",
     fontSize: 15,
     fontWeight: "500",
+  },
+  reportCard: {
+    backgroundColor: "#fafafa",
+    borderWidth: 1,
+    borderColor: "#eee",
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 16,
+  },
+  reportHeading: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#333",
+    marginBottom: 6,
+  },
+  reportBody: {
+    fontSize: 14,
+    color: "#666",
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  reportButton: {
+    backgroundColor: "#4CAF50",
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  reportButtonDisabled: {
+    backgroundColor: "#a5d6a7",
+  },
+  reportButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "700",
   },
 });
