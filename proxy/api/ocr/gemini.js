@@ -9,7 +9,7 @@ const RESPONSE_SCHEMA = {
     weekStart: {
       type: "STRING",
       description:
-        "ISO date (YYYY-MM-DD) of the first day of the week shown, if visible. Omit if not visible.",
+        "ISO date (YYYY-MM-DD) of the first day of the week or month shown, if visible. Omit if not visible.",
     },
     shifts: {
       type: "ARRAY",
@@ -19,14 +19,21 @@ const RESPONSE_SCHEMA = {
           dayOfWeek: { type: "STRING" },
           date: {
             type: "STRING",
-            description:
-              "YYYY-MM-DD if you can derive it from the image; otherwise omit",
+            description: "YYYY-MM-DD if derivable from the image",
           },
-          startTime: { type: "STRING", description: "h:mm AM/PM format" },
-          endTime: { type: "STRING", description: "h:mm AM/PM format" },
+          startTime: {
+            type: "STRING",
+            description:
+              "h:mm AM/PM format. OMIT if the source shows no specific times (e.g. monthly marker grid).",
+          },
+          endTime: {
+            type: "STRING",
+            description:
+              "h:mm AM/PM format. OMIT if the source shows no specific times.",
+          },
           department: { type: "STRING" },
         },
-        required: ["dayOfWeek", "startTime", "endTime"],
+        required: ["dayOfWeek"],
       },
     },
   },
@@ -34,8 +41,24 @@ const RESPONSE_SCHEMA = {
 };
 
 const PROMPT = `Extract all work shifts from this schedule screenshot.
-For each shift return: day of week (full name), start time (h:mm AM/PM), end time (h:mm AM/PM), and department/role if shown.
-If the screenshot shows explicit dates for the week (e.g. "Week of Mar 8"), return weekStart as YYYY-MM-DD.
+
+The screenshot may be in one of two formats:
+
+(A) LIST or WEEKLY GRID with explicit shift times. For each shift extract:
+    - dayOfWeek (full name)
+    - date (YYYY-MM-DD if you can derive it from visible context)
+    - startTime (h:mm AM/PM format, e.g. "9:00 AM")
+    - endTime (h:mm AM/PM format)
+    - department/role if shown
+
+(B) MONTHLY CALENDAR VIEW with markers (dots, fills, highlights, etc.) on days the user works but NO specific times. For each marked day extract:
+    - date (YYYY-MM-DD - derive from the visible month/year header)
+    - dayOfWeek (full name)
+    - OMIT startTime and endTime entirely
+    - OMIT department
+
+If the screenshot shows an explicit week or month range header (e.g. "Week of Mar 8" or "May 2026"), return weekStart as the first day shown (YYYY-MM-DD).
+
 Skip days marked "off", "not scheduled", "available", "requested off", or similar.
 Times like "5a" or "14:00" should be normalized to "5:00 AM" or "2:00 PM".`;
 
