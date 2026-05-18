@@ -1,0 +1,14 @@
+{
+  "name": "snapshift-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": "20.x"
+  },
+  "dependencies": {
+    "resend": "^4.0.0"
+  },
+  "devDependencies": {
+    "@vercel/node": "^5.8.2"
+  }
+}
