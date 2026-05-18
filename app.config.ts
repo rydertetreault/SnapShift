@@ -46,6 +46,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     ],
     "@react-native-community/datetimepicker",
     "expo-web-browser",
+    [
+      "expo-calendar",
+      {
+        calendarPermission:
+          "SnapShift uses your iPhone Calendar so you can see existing events alongside SnapShift events, and optionally save SnapShift events back to a dedicated SnapShift calendar.",
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,
