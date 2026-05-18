@@ -123,10 +123,7 @@ module.exports = async function handler(req, res) {
   if (!upstream.ok) {
     const errText = await upstream.text();
     console.error("Gemini error", upstream.status, errText);
-    return res.status(502).json({
-      error: "Vision service unavailable",
-      debug: { status: upstream.status, body: errText.slice(0, 500) },
-    });
+    return res.status(502).json({ error: "Vision service unavailable" });
   }
 
   const data = await upstream.json();
