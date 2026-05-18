@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { format, parseISO } from "date-fns";
+import * as Calendar from "expo-calendar";
 import { ScheduleEvent, EventCategory } from "@/lib/types";
 import { getEventById, updateEvent, deleteEvent } from "@/lib/storage";
 import { deleteFutureInSeries, deleteSeries, updateSeries } from "@/lib/storage";
@@ -196,7 +197,11 @@ export default function EventDetailScreen() {
           {CATEGORY_LABELS[event.category]}
         </Text>
         <Text style={styles.bannerSource}>
-          {event.source === "ai" ? "From screenshot" : "Manual entry"}
+          {event.source === "ai"
+            ? "From screenshot"
+            : event.source === "ios"
+            ? "From iPhone Calendar"
+            : "Manual entry"}
         </Text>
       </View>
 
@@ -273,20 +278,35 @@ export default function EventDetailScreen() {
             </View>
           ) : null}
 
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[styles.button, styles.editButton]}
-              onPress={() => setEditing(true)}
-            >
-              <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.deleteButton]}
-              onPress={handleDelete}
-            >
-              <Text style={styles.deleteButtonText}>Delete</Text>
-            </TouchableOpacity>
-          </View>
+          {event.source === "ios" ? (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.button, styles.editButton]}
+                onPress={() =>
+                  Calendar.openEventInCalendarAsync({
+                    id: event.iosCalendarEventId!,
+                  })
+                }
+              >
+                <Text style={styles.editButtonText}>Open in Calendar</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.button, styles.editButton]}
+                onPress={() => setEditing(true)}
+              >
+                <Text style={styles.editButtonText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.deleteButton]}
+                onPress={handleDelete}
+              >
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
     </ScrollView>
