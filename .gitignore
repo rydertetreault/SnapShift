@@ -50,3 +50,4 @@ assets/images/*.rgba-backup.png
 
 # Git worktrees
 .worktrees/
+.vercel
