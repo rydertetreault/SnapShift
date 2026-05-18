@@ -1,7 +1,7 @@
 const { checkAuth, checkRateLimit } = require("../_lib/auth.js");
 
 const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent";
 
 const RESPONSE_SCHEMA = {
   type: "OBJECT",
@@ -40,27 +40,43 @@ const RESPONSE_SCHEMA = {
   required: ["shifts"],
 };
 
-const PROMPT = `Extract all work shifts from this schedule screenshot.
+const PROMPT = `You are extracting work shifts from a schedule screenshot. ACCURACY IS CRITICAL. Missing a shift means the user misses work, which is much worse than detecting an extra one.
 
 The screenshot may be in one of two formats:
 
-(A) LIST or WEEKLY GRID with explicit shift times. For each shift extract:
-    - dayOfWeek (full name)
-    - date (YYYY-MM-DD if you can derive it from visible context)
-    - startTime (h:mm AM/PM format, e.g. "9:00 AM")
-    - endTime (h:mm AM/PM format)
-    - department/role if shown
+(A) LIST or WEEKLY GRID with explicit shift times.
+For each shift extract: dayOfWeek (full name), date (YYYY-MM-DD if derivable), startTime (h:mm AM/PM), endTime (h:mm AM/PM), department/role if shown.
 
-(B) MONTHLY CALENDAR VIEW with markers (dots, fills, highlights, etc.) on days the user works but NO specific times. For each marked day extract:
-    - date (YYYY-MM-DD - derive from the visible month/year header)
-    - dayOfWeek (full name)
-    - OMIT startTime and endTime entirely
-    - OMIT department
+(B) MONTHLY CALENDAR VIEW with markers (dots, fills, highlights, icons, badges, color changes, underlines, asterisks, etc.) on days the user works but NO specific times.
 
-If the screenshot shows an explicit week or month range header (e.g. "Week of Mar 8" or "May 2026"), return weekStart as the first day shown (YYYY-MM-DD).
+For format (B), follow this procedure RIGOROUSLY:
+
+1. Read the month/year from the header (e.g. "May 2026"). Set weekStart to the first day of that month (e.g. "2026-05-01").
+
+2. Identify the day-of-week column order from the header row (commonly Sun-Sat or Mon-Sun).
+
+3. The grid contains roughly 35-42 day cells across 5-6 rows. Walk through EVERY cell systematically, row by row, left to right. Do not skip any cell.
+
+4. Day numbers in faded/lighter color belong to adjacent months — EXCLUDE those.
+
+5. For each in-month cell, examine it for ANY marker indicating a shift:
+   - dots (often small, below or beside the date number)
+   - colored fills or backgrounds (other than the "today" highlight)
+   - icons, badges, asterisks, underlines
+   - any visual difference from a blank cell
+   The "today" highlight (often a solid color box around the current date) is NOT a shift marker on its own — check for additional markers on top of it.
+
+6. PAY EXTRA ATTENTION to the rightmost column (Saturday) and leftmost column (Sunday). Markers there are easy to miss because they sit at the edge.
+
+7. For each cell with a marker, output: { date: "YYYY-MM-DD", dayOfWeek: "FullName" }. Omit startTime, endTime, and department for marker-only cells.
+
+8. Before finalizing, COUNT the markers you found and re-scan the image to confirm the count matches what's visually present. If unsure about a faint marker, INCLUDE it (false positive is better than miss).
 
 Skip days marked "off", "not scheduled", "available", "requested off", or similar.
-Times like "5a" or "14:00" should be normalized to "5:00 AM" or "2:00 PM".`;
+
+For format (A), times like "5a" or "14:00" should be normalized to "5:00 AM" or "2:00 PM".
+
+Output only the JSON matching the schema. Be exhaustive about markers.`;
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST")
