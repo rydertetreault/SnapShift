@@ -1,4 +1,4 @@
-import { addDays, format } from "date-fns";
+import { addDays, differenceInDays, format, getDate, getDay } from "date-fns";
 import { ExtractedShift } from "../types";
 
 type DayNumbers = Partial<
@@ -24,13 +24,31 @@ const DOW_OFFSET: Record<keyof DayNumbers, number> = {
   friday: 6,
 };
 
-// Stub: Task 4.2 implements the real algorithm. Returning null falls
-// through to the "current Saturday" default in the orchestrator.
 export function inferWeekStartFromDayNumbers(
-  _numbers: DayNumbers,
-  _today: Date = new Date()
+  numbers: DayNumbers,
+  today: Date = new Date()
 ): string | null {
-  return null;
+  let bestSat: Date | null = null;
+  let bestDist = Infinity;
+  for (const [dow, num] of Object.entries(numbers)) {
+    if (num === undefined) continue;
+    const offset = DOW_OFFSET[dow as keyof DayNumbers];
+    for (let delta = -26 * 7; delta <= 26 * 7; delta++) {
+      const candidate = addDays(today, delta);
+      if (getDate(candidate) !== num) continue;
+      const candDow = getDay(candidate);
+      const backToSat = candDow === 6 ? 0 : candDow + 1;
+      const sat = addDays(candidate, -backToSat);
+      const actualOffset = differenceInDays(candidate, sat);
+      if (actualOffset !== offset) continue;
+      const dist = Math.abs(differenceInDays(sat, today));
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestSat = sat;
+      }
+    }
+  }
+  return bestSat ? format(bestSat, "yyyy-MM-dd") : null;
 }
 
 export function resolveDates(
