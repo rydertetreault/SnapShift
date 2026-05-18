@@ -1,7 +1,7 @@
 const { checkAuth, checkRateLimit } = require("../_lib/auth.js");
 
 const GEMINI_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
 const RESPONSE_SCHEMA = {
   type: "OBJECT",
