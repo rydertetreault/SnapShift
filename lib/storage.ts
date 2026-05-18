@@ -83,3 +83,27 @@ export async function updateSeries(
   });
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
 }
+
+export async function upsertIosEvents(events: ScheduleEvent[]): Promise<void> {
+  const existing = await getAllEvents();
+  const incomingIds = new Set(
+    events.map((e) => e.iosCalendarEventId!).filter(Boolean)
+  );
+  // Drop existing source==="ios" events that aren't in the incoming batch
+  const kept = existing.filter((e) => {
+    if (e.source !== "ios") return true;
+    return e.iosCalendarEventId && incomingIds.has(e.iosCalendarEventId);
+  });
+  const existingByIosId = new Map(
+    kept
+      .filter((e) => e.source === "ios" && e.iosCalendarEventId)
+      .map((e) => [e.iosCalendarEventId!, e])
+  );
+  const nonIos = kept.filter((e) => e.source !== "ios");
+  const merged: ScheduleEvent[] = [...nonIos];
+  for (const incoming of events) {
+    const prev = existingByIosId.get(incoming.iosCalendarEventId!);
+    merged.push(prev ? { ...prev, ...incoming } : incoming);
+  }
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+}
