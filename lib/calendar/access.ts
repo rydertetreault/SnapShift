@@ -1,5 +1,9 @@
 import * as Calendar from "expo-calendar";
 
+// The calendar SnapShift creates in EventKit when mirroring is enabled.
+// Must match the constant in lib/calendar/mirror.ts.
+export const SNAPSHIFT_CALENDAR_TITLE = "SnapShift";
+
 export interface IosCalendar {
   id: string;
   title: string;
@@ -20,13 +24,20 @@ export async function hasCalendarAccess(): Promise<boolean> {
 
 export async function listIosCalendars(): Promise<IosCalendar[]> {
   const cals = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
-  return cals.map((c) => ({
-    id: c.id,
-    title: c.title,
-    source: c.source?.name ?? "Unknown",
-    color: c.color,
-    allowsModifications: c.allowsModifications,
-  }));
+  // Hide our own mirror-target calendar from the read picker.
+  // Including it would cause every mirrored event to appear twice.
+  return cals
+    .filter(
+      (c) =>
+        !(c.title === SNAPSHIFT_CALENDAR_TITLE && c.allowsModifications),
+    )
+    .map((c) => ({
+      id: c.id,
+      title: c.title,
+      source: c.source?.name ?? "Unknown",
+      color: c.color,
+      allowsModifications: c.allowsModifications,
+    }));
 }
 
 export async function fetchEventsForRange(

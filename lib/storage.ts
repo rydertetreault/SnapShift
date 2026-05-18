@@ -8,10 +8,20 @@ export async function getAllEvents(): Promise<ScheduleEvent[]> {
   return JSON.parse(json);
 }
 
+async function triggerMirror(): Promise<void> {
+  try {
+    const { mirrorSnapShiftEvents } = await import("./calendar/mirror");
+    mirrorSnapShiftEvents().catch(() => {});
+  } catch {
+    // Mirror module unavailable (e.g. Jest VM environment). Safe to skip.
+  }
+}
+
 export async function saveEvent(event: ScheduleEvent): Promise<void> {
   const events = await getAllEvents();
   events.push(event);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+  triggerMirror();
 }
 
 export async function saveMultipleEvents(
@@ -20,6 +30,7 @@ export async function saveMultipleEvents(
   const events = await getAllEvents();
   events.push(...newEvents);
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(events));
+  triggerMirror();
 }
 
 export async function updateEvent(
