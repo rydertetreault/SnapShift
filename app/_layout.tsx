@@ -3,6 +3,7 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { maybeExtendIndefiniteSeries } from "@/lib/seriesMaintenance";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -12,6 +13,10 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     ...FontAwesome.font,
   });
+
+  useEffect(() => {
+    maybeExtendIndefiniteSeries().catch(console.warn);
+  }, []);
 
   useEffect(() => {
     if (error) throw error;
