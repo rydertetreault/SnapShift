@@ -1,4 +1,18 @@
-const { checkAuth, checkRateLimit } = require("../_lib/auth.js");
+// One-shot verifier for the Gemini Vision pipeline.
+// Calls Gemini directly with the same prompt/schema/config as proxy/api/ocr/gemini.js.
+// Usage: npx tsx scripts/test-vision-ocr.ts [image-path]
+// Default image: assets/images/schedule-example-2.jpg
+
+import fs from "node:fs";
+import path from "node:path";
+
+const envPath = path.join(process.cwd(), ".env");
+if (fs.existsSync(envPath)) {
+  for (const line of fs.readFileSync(envPath, "utf-8").split("\n")) {
+    const m = line.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)\s*$/);
+    if (m) process.env[m[1]] = m[2].replace(/^["']|["']$/g, "");
+  }
+}
 
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
@@ -78,75 +92,78 @@ For format (A), times like "5a" or "14:00" should be normalized to "5:00 AM" or 
 
 Output only the JSON matching the schema. Be exhaustive about markers.`;
 
-module.exports = async function handler(req, res) {
-  if (req.method !== "POST")
-    return res.status(405).json({ error: "Method not allowed" });
-  if (!checkAuth(req, res)) return;
-  if (!checkRateLimit(req, res)) return;
-
-  const { imageBase64, mimeType } = req.body || {};
-  if (!imageBase64 || !mimeType) {
-    return res
-      .status(400)
-      .json({ error: "imageBase64 and mimeType required" });
+async function main() {
+  const imagePath = process.argv[2] ?? "assets/images/schedule-example-2.jpg";
+  if (!fs.existsSync(imagePath)) {
+    console.error(`Image not found: ${imagePath}`);
+    process.exit(1);
   }
-  if (imageBase64.length > 8 * 1024 * 1024) {
-    return res.status(413).json({ error: "Image too large" });
-  }
-
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey)
-    return res.status(500).json({ error: "GEMINI_API_KEY not set" });
+  if (!apiKey) {
+    console.error("GEMINI_API_KEY not set in .env");
+    process.exit(1);
+  }
 
-  const body = {
-    contents: [
-      {
-        parts: [
-          { text: PROMPT },
-          { inline_data: { mime_type: mimeType, data: imageBase64 } },
-        ],
+  const buf = fs.readFileSync(imagePath);
+  const base64 = buf.toString("base64");
+  const ext = path.extname(imagePath).toLowerCase();
+  const mimeType =
+    ext === ".png" ? "image/png" : ext === ".webp" ? "image/webp" : "image/jpeg";
+
+  console.log(`\nImage:    ${imagePath}`);
+  console.log(`Size:     ${(buf.length / 1024).toFixed(1)} KB`);
+  console.log(`MIME:     ${mimeType}`);
+
+  for (const resolution of ["MEDIA_RESOLUTION_MEDIUM", "MEDIA_RESOLUTION_HIGH"] as const) {
+    console.log(`\n=== Gemini 2.5 Flash @ ${resolution} ===`);
+    const body = {
+      contents: [
+        {
+          parts: [
+            { text: PROMPT },
+            { inline_data: { mime_type: mimeType, data: base64 } },
+          ],
+        },
+      ],
+      generationConfig: {
+        responseMimeType: "application/json",
+        responseSchema: RESPONSE_SCHEMA,
+        temperature: 0.1,
+        mediaResolution: resolution,
       },
-    ],
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: RESPONSE_SCHEMA,
-      temperature: 0.1,
-      // Process the image at higher resolution so small markers (dots
-      // under date numbers in monthly grids) survive Gemini's downsampling.
-      mediaResolution: "MEDIA_RESOLUTION_HIGH",
-    },
-  };
-
-  const upstream = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
-  if (!upstream.ok) {
-    const errText = await upstream.text();
-    console.error("Gemini error", upstream.status, errText);
-    return res.status(502).json({ error: "Vision service unavailable" });
+    };
+    const t0 = Date.now();
+    const resp = await fetch(`${GEMINI_URL}?key=${apiKey}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const elapsed = Date.now() - t0;
+    if (!resp.ok) {
+      console.error(`HTTP ${resp.status}: ${await resp.text()}`);
+      continue;
+    }
+    const data: any = await resp.json();
+    const text =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+    let parsed: any;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      console.error("Could not parse Gemini response:", text);
+      continue;
+    }
+    console.log(`Latency: ${elapsed} ms`);
+    console.log(`weekStart: ${parsed.weekStart ?? "(none)"}`);
+    console.log(`shifts (${parsed.shifts?.length ?? 0}):`);
+    for (const s of parsed.shifts ?? []) {
+      const dom = s.date ? s.date.slice(8) : "??";
+      console.log(`  ${dom}  ${s.dayOfWeek}  ${s.startTime ?? "(all-day)"} ${s.endTime ? "- " + s.endTime : ""} ${s.department ?? ""}`);
+    }
   }
+}
 
-  const data = await upstream.json();
-  const text =
-    data &&
-    data.candidates &&
-    data.candidates[0] &&
-    data.candidates[0].content &&
-    data.candidates[0].content.parts &&
-    data.candidates[0].content.parts[0] &&
-    data.candidates[0].content.parts[0].text;
-  if (!text)
-    return res
-      .status(502)
-      .json({ error: "Empty response from vision service" });
-
-  try {
-    const parsed = JSON.parse(text);
-    return res.status(200).json(parsed);
-  } catch (e) {
-    return res.status(502).json({ error: "Could not parse vision response" });
-  }
-};
+main().catch((e) => {
+  console.error("\nFailed:", e?.message ?? e);
+  process.exit(1);
+});

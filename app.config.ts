@@ -4,7 +4,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: "SnapShift",
   slug: "snapshift",
-  version: "1.1.0",
+  version: "1.1.1",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "snapshift",
@@ -13,7 +13,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: false,
     bundleIdentifier: "dev.rydertetreault.snapshift",
-    buildNumber: "2",
+    buildNumber: "3",
     infoPlist: {
       NSCameraUsageDescription:
         "SnapShift uses the camera so you can take a photo of your work schedule. The image may be sent to an AI service for reading when our local parser cannot recognize the format.",
