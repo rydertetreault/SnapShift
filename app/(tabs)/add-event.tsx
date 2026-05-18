@@ -12,10 +12,12 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { format } from "date-fns";
-import { EventCategory, ScheduleEvent } from "@/lib/types";
-import { saveEvent } from "@/lib/storage";
+import { EventCategory, Recurrence, ScheduleEvent } from "@/lib/types";
+import { saveMultipleEvents } from "@/lib/storage";
+import { expandRecurrence } from "@/lib/recurrence";
 import CategoryPicker from "@/components/CategoryPicker";
 import PickerField from "@/components/PickerField";
+import RepeatPicker from "@/components/RepeatPicker";
 
 export default function AddEventScreen() {
   const router = useRouter();
@@ -36,6 +38,7 @@ export default function AddEventScreen() {
   });
   const [category, setCategory] = useState<EventCategory>("personal");
   const [notes, setNotes] = useState("");
+  const [recurrence, setRecurrence] = useState<Recurrence>({ frequency: "none" });
 
   function resetForm() {
     setTitle("");
@@ -49,6 +52,7 @@ export default function AddEventScreen() {
     setEndTime(later);
     setCategory("personal");
     setNotes("");
+    setRecurrence({ frequency: "none" });
   }
 
   async function handleSave() {
@@ -56,47 +60,53 @@ export default function AddEventScreen() {
       Alert.alert("Missing Title", "Please enter a title for this event.");
       return;
     }
-
-    // Build the full start/end datetimes using the selected date + times
     const dateStr = format(date, "yyyy-MM-dd");
-
     const start = new Date(date);
     start.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
-
     const end = new Date(date);
     end.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
-
     if (end <= start) {
-      Alert.alert(
-        "Invalid Times",
-        "End time must be after start time."
-      );
+      Alert.alert("Invalid Times", "End time must be after start time.");
       return;
     }
 
-    const event: ScheduleEvent = {
-      id: Math.random().toString(36).substring(2, 10),
-      title: title.trim(),
-      date: dateStr,
-      startTime: start.toISOString(),
-      endTime: end.toISOString(),
-      category,
-      source: "manual",
-      notes: notes.trim() || undefined,
-      createdAt: new Date().toISOString(),
-    };
+    const seriesId = recurrence.frequency === "none" ? undefined : randomId();
+    const dates = expandRecurrence(dateStr, recurrence);
 
-    await saveEvent(event);
+    const events: ScheduleEvent[] = dates.map((d) => {
+      const occStart = withDate(d, start);
+      const occEnd = withDate(d, end);
+      return {
+        id: randomId(),
+        title: title.trim(),
+        date: d,
+        startTime: occStart.toISOString(),
+        endTime: occEnd.toISOString(),
+        category,
+        source: "manual",
+        notes: notes.trim() || undefined,
+        createdAt: new Date().toISOString(),
+        seriesId,
+        recurrence: seriesId ? recurrence : undefined,
+      };
+    });
 
-    Alert.alert("Saved", `"${event.title}" added to your schedule.`, [
-      {
-        text: "OK",
-        onPress: () => {
-          resetForm();
-          router.navigate("/(tabs)");
-        },
-      },
-    ]);
+    await saveMultipleEvents(events);
+
+    const msg = events.length === 1
+      ? `"${events[0].title}" added to your schedule.`
+      : `${events.length} occurrences of "${events[0].title}" added.`;
+    Alert.alert("Saved", msg, [{ text: "OK", onPress: () => { resetForm(); router.navigate("/(tabs)"); } }]);
+  }
+
+  function randomId() {
+    return Math.random().toString(36).substring(2, 10);
+  }
+
+  function withDate(dateStr: string, timeSource: Date): Date {
+    const d = new Date(dateStr + "T00:00:00");
+    d.setHours(timeSource.getHours(), timeSource.getMinutes(), 0, 0);
+    return d;
   }
 
   return (
@@ -146,8 +156,11 @@ export default function AddEventScreen() {
           onChange={setEndTime}
         />
 
+        {/* Repeat */}
+        <RepeatPicker value={recurrence} onChange={setRecurrence} />
+
         {/* Category */}
-        <Text style={styles.label}>Category</Text>
+        <Text style={[styles.label, { marginTop: 20 }]}>Category</Text>
         <CategoryPicker selected={category} onSelect={setCategory} />
 
         {/* Notes */}
