@@ -23,7 +23,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
       <View style={styles.content}>
         <Text style={styles.title}>{event.title}</Text>
         <Text style={styles.time}>
-          {startTime} - {endTime}
+          {event.allDay ? "All day" : `${startTime} - ${endTime}`}
         </Text>
         <Text style={[styles.category, { color }]}>
           {CATEGORY_LABELS[event.category]}

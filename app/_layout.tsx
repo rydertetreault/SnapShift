@@ -3,6 +3,10 @@ import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { AppState } from "react-native";
+import { maybeExtendIndefiniteSeries } from "@/lib/seriesMaintenance";
+import { syncIosCalendars } from "@/lib/calendar/sync";
+import { mirrorSnapShiftEvents } from "@/lib/calendar/mirror";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -12,6 +16,22 @@ export default function RootLayout() {
   const [loaded, error] = useFonts({
     ...FontAwesome.font,
   });
+
+  useEffect(() => {
+    maybeExtendIndefiniteSeries().catch(console.warn);
+  }, []);
+
+  useEffect(() => {
+    const runSync = () => {
+      syncIosCalendars().catch(console.warn);
+      mirrorSnapShiftEvents().catch(console.warn);
+    };
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") runSync();
+    });
+    runSync();
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     if (error) throw error;

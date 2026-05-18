@@ -1,10 +1,10 @@
-import { ExpoConfig, ConfigContext } from "expo/config";
+import { ConfigContext, ExpoConfig } from "expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: "SnapShift",
   slug: "snapshift",
-  version: "1.0.0",
+  version: "1.1.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "snapshift",
@@ -13,12 +13,12 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: false,
     bundleIdentifier: "dev.rydertetreault.snapshift",
-    buildNumber: "1",
+    buildNumber: "2",
     infoPlist: {
       NSCameraUsageDescription:
-        "SnapShift uses the camera so you can take a photo of your work schedule and have it added to your calendar.",
+        "SnapShift uses the camera so you can take a photo of your work schedule. The image may be sent to an AI service for reading when our local parser cannot recognize the format.",
       NSPhotoLibraryUsageDescription:
-        "SnapShift needs access to your photo library so you can upload schedule screenshots and have them added to your calendar.",
+        "SnapShift needs access to your photo library so you can upload schedule screenshots. Selected images may be sent to an AI service for reading when our local parser cannot recognize the format.",
       ITSAppUsesNonExemptEncryption: false,
     },
   },
@@ -44,8 +44,22 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         backgroundColor: "#2d642a",
       },
     ],
+    "@react-native-community/datetimepicker",
+    "expo-web-browser",
+    [
+      "expo-calendar",
+      {
+        calendarPermission:
+          "SnapShift uses your iPhone Calendar so you can see existing events alongside SnapShift events, and optionally save SnapShift events back to a dedicated SnapShift calendar.",
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,
+  },
+  extra: {
+    eas: {
+      projectId: "9ba1a8a9-913f-496c-a22d-06717ac3331b",
+    },
   },
 });

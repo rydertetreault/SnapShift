@@ -11,8 +11,10 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { format, parseISO } from "date-fns";
+import * as Calendar from "expo-calendar";
 import { ScheduleEvent, EventCategory } from "@/lib/types";
 import { getEventById, updateEvent, deleteEvent } from "@/lib/storage";
+import { deleteFutureInSeries, deleteSeries, updateSeries } from "@/lib/storage";
 import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/lib/constants";
 import CategoryPicker from "@/components/CategoryPicker";
 import PickerField from "@/components/PickerField";
@@ -68,39 +70,106 @@ export default function EventDetailScreen() {
       Alert.alert("Error", "Title is required");
       return;
     }
-
     const dateStr = format(date, "yyyy-MM-dd");
     const start = new Date(date);
     start.setHours(startTime.getHours(), startTime.getMinutes(), 0, 0);
     const end = new Date(date);
     end.setHours(endTime.getHours(), endTime.getMinutes(), 0, 0);
-
     if (end <= start) {
       Alert.alert("Invalid Times", "End time must be after start time.");
       return;
     }
 
-    await updateEvent(event.id, {
+    const updates = {
       title: title.trim(),
-      date: dateStr,
-      startTime: start.toISOString(),
-      endTime: end.toISOString(),
       category,
       notes: notes.trim() || undefined,
-    });
-    setEditing(false);
-    await loadEvent();
+    };
+
+    // Time-of-day updates apply across the series; date updates only make sense for one event.
+    const timeUpdates = {
+      startTime: start.toISOString(),
+      endTime: end.toISOString(),
+    };
+
+    if (!event.seriesId) {
+      await updateEvent(event.id, { ...updates, date: dateStr, ...timeUpdates });
+      setEditing(false);
+      await loadEvent();
+      return;
+    }
+
+    Alert.alert("Edit Repeating Event", "Apply changes to:", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "This event only",
+        onPress: async () => {
+          // Detach this occurrence from the series so series-level edits won't clobber it.
+          await updateEvent(event.id, { ...updates, date: dateStr, ...timeUpdates, seriesId: undefined });
+          setEditing(false);
+          await loadEvent();
+        },
+      },
+      {
+        text: "This and future events",
+        onPress: async () => {
+          // Apply title/category/notes + time-of-day to every future occurrence; leave dates alone.
+          await updateSeries(event.seriesId!, { ...updates, ...timeUpdates }, event.date);
+          setEditing(false);
+          await loadEvent();
+        },
+      },
+      {
+        text: "All events in the series",
+        onPress: async () => {
+          await updateSeries(event.seriesId!, { ...updates, ...timeUpdates });
+          setEditing(false);
+          await loadEvent();
+        },
+      },
+    ]);
   }
 
   async function handleDelete() {
     if (!event) return;
-    Alert.alert("Delete Event", `Delete "${event.title}"?`, [
+
+    if (!event.seriesId) {
+      Alert.alert("Delete Event", `Delete "${event.title}"?`, [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            await deleteEvent(event.id);
+            router.back();
+          },
+        },
+      ]);
+      return;
+    }
+
+    Alert.alert("Delete Repeating Event", "What would you like to delete?", [
       { text: "Cancel", style: "cancel" },
       {
-        text: "Delete",
-        style: "destructive",
+        text: "This event only",
         onPress: async () => {
           await deleteEvent(event.id);
+          router.back();
+        },
+      },
+      {
+        text: "This and future events",
+        style: "destructive",
+        onPress: async () => {
+          await deleteFutureInSeries(event.seriesId!, event.date);
+          router.back();
+        },
+      },
+      {
+        text: "All events in the series",
+        style: "destructive",
+        onPress: async () => {
+          await deleteSeries(event.seriesId!);
           router.back();
         },
       },
@@ -128,7 +197,11 @@ export default function EventDetailScreen() {
           {CATEGORY_LABELS[event.category]}
         </Text>
         <Text style={styles.bannerSource}>
-          {event.source === "ai" ? "From screenshot" : "Manual entry"}
+          {event.source === "ai"
+            ? "From screenshot"
+            : event.source === "ios"
+            ? "From iPhone Calendar"
+            : "Manual entry"}
         </Text>
       </View>
 
@@ -195,7 +268,7 @@ export default function EventDetailScreen() {
           <Text style={styles.eventTitle}>{event.title}</Text>
           <Text style={styles.dateText}>{dateDisplay}</Text>
           <Text style={styles.timeText}>
-            {displayStart} - {displayEnd}
+            {event.allDay ? "All day" : `${displayStart} - ${displayEnd}`}
           </Text>
 
           {event.notes ? (
@@ -205,20 +278,35 @@ export default function EventDetailScreen() {
             </View>
           ) : null}
 
-          <View style={styles.buttonRow}>
-            <TouchableOpacity
-              style={[styles.button, styles.editButton]}
-              onPress={() => setEditing(true)}
-            >
-              <Text style={styles.editButtonText}>Edit</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.deleteButton]}
-              onPress={handleDelete}
-            >
-              <Text style={styles.deleteButtonText}>Delete</Text>
-            </TouchableOpacity>
-          </View>
+          {event.source === "ios" ? (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.button, styles.editButton]}
+                onPress={() =>
+                  Calendar.openEventInCalendarAsync({
+                    id: event.iosCalendarEventId!,
+                  })
+                }
+              >
+                <Text style={styles.editButtonText}>Open in Calendar</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.button, styles.editButton]}
+                onPress={() => setEditing(true)}
+              >
+                <Text style={styles.editButtonText}>Edit</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.deleteButton]}
+                onPress={handleDelete}
+              >
+                <Text style={styles.deleteButtonText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
     </ScrollView>

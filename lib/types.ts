@@ -6,22 +6,57 @@ export type EventCategory =
   | "personal"
   | "other";
 
+export type EventSource = "ai" | "manual" | "ios";
+
+export type RecurrenceFrequency =
+  | "none"
+  | "daily"
+  | "weekly"
+  | "biweekly"
+  | "monthly"
+  | "custom"; // custom = weekly + specific days-of-week
+
+// 0 = Sunday, 1 = Monday, ..., 6 = Saturday (matches JS Date.getDay())
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+export interface Recurrence {
+  frequency: RecurrenceFrequency;
+  // Only used when frequency === "custom"
+  weekdays?: Weekday[];
+  // ISO date "YYYY-MM-DD". Omit for indefinite.
+  endDate?: string;
+}
+
 export interface ScheduleEvent {
   id: string;
   title: string;
   date: string; // "2026-04-07"
-  startTime: string; // ISO datetime: "2026-04-07T14:00:00"
-  endTime: string; // ISO datetime: "2026-04-07T22:30:00"
+  startTime: string; // ISO datetime
+  endTime: string; // ISO datetime
   category: EventCategory;
-  source: "ai" | "manual";
+  source: EventSource;
   notes?: string;
-  createdAt: string; // ISO datetime
+  createdAt: string;
+  // Repeating events share this. Singletons have it undefined.
+  seriesId?: string;
+  // Stored on every occurrence so we can re-extend indefinite series.
+  recurrence?: Recurrence;
+  // Set when this event came from iPhone Calendar (source === "ios")
+  // OR when this SnapShift event has been mirrored to iPhone Calendar (source === "manual" or "ai").
+  // The `source` field tells us which case applies. Used for upsert on re-sync and for deep-link "Open in Calendar".
+  iosCalendarEventId?: string;
+  // True when the event is an all-day work marker with no specific time
+  // (e.g. detected from a monthly grid OCR). UI hides time, EventKit mirror sets allDay.
+  allDay?: boolean;
 }
 
 export interface ExtractedShift {
-  dayOfWeek: string; // "Monday", "Tuesday", etc.
-  date: string; // resolved to actual date: "2026-04-07"
-  startTime: string; // "2:00 PM"
-  endTime: string; // "10:30 PM"
+  dayOfWeek: string;
+  date: string;
+  startTime: string;
+  endTime: string;
   department?: string;
+  // True when the source schedule had no specific times (e.g. monthly marker grid).
+  // startTime/endTime will be placeholder sentinel values in that case.
+  allDay?: boolean;
 }

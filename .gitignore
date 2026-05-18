@@ -40,3 +40,14 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Local working docs (not project content)
+docs/
+APP_STORE_CHECKLIST.md
+
+# Asset working files
+assets/images/*.rgba-backup.png
+
+# Git worktrees
+.worktrees/
+.vercel
