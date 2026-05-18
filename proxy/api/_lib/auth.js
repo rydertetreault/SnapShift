@@ -1,12 +1,9 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-
 const RATE_LIMIT_MAX = 30;
 const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
 
-// In-memory rate limit. Resets between cold starts but good enough for low volume.
-const hits = new Map<string, { count: number; resetAt: number }>();
+const hits = new Map();
 
-export function checkAuth(req: VercelRequest, res: VercelResponse): boolean {
+function checkAuth(req, res) {
   const expected = process.env.PROXY_SHARED_SECRET;
   if (!expected) {
     res.status(500).json({ error: "Server misconfigured" });
@@ -20,10 +17,11 @@ export function checkAuth(req: VercelRequest, res: VercelResponse): boolean {
   return true;
 }
 
-export function checkRateLimit(req: VercelRequest, res: VercelResponse): boolean {
+function checkRateLimit(req, res) {
+  const xff = req.headers["x-forwarded-for"];
   const ip =
-    (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
-    req.socket?.remoteAddress ||
+    (typeof xff === "string" && xff.split(",")[0].trim()) ||
+    (req.socket && req.socket.remoteAddress) ||
     "unknown";
   const now = Date.now();
   const entry = hits.get(ip);
@@ -38,3 +36,5 @@ export function checkRateLimit(req: VercelRequest, res: VercelResponse): boolean
   entry.count += 1;
   return true;
 }
+
+module.exports = { checkAuth, checkRateLimit };

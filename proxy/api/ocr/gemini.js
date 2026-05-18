@@ -1,5 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { checkAuth, checkRateLimit } from "../_lib/auth.js";
+const { checkAuth, checkRateLimit } = require("../_lib/auth.js");
 
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
@@ -18,7 +17,11 @@ const RESPONSE_SCHEMA = {
         type: "OBJECT",
         properties: {
           dayOfWeek: { type: "STRING" },
-          date: { type: "STRING", description: "YYYY-MM-DD if you can derive it from the image; otherwise omit" },
+          date: {
+            type: "STRING",
+            description:
+              "YYYY-MM-DD if you can derive it from the image; otherwise omit",
+          },
           startTime: { type: "STRING", description: "h:mm AM/PM format" },
           endTime: { type: "STRING", description: "h:mm AM/PM format" },
           department: { type: "STRING" },
@@ -36,24 +39,25 @@ If the screenshot shows explicit dates for the week (e.g. "Week of Mar 8"), retu
 Skip days marked "off", "not scheduled", "available", "requested off", or similar.
 Times like "5a" or "14:00" should be normalized to "5:00 AM" or "2:00 PM".`;
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+module.exports = async function handler(req, res) {
+  if (req.method !== "POST")
+    return res.status(405).json({ error: "Method not allowed" });
   if (!checkAuth(req, res)) return;
   if (!checkRateLimit(req, res)) return;
 
-  const { imageBase64, mimeType } = (req.body ?? {}) as {
-    imageBase64?: string;
-    mimeType?: string;
-  };
+  const { imageBase64, mimeType } = req.body || {};
   if (!imageBase64 || !mimeType) {
-    return res.status(400).json({ error: "imageBase64 and mimeType required" });
+    return res
+      .status(400)
+      .json({ error: "imageBase64 and mimeType required" });
   }
   if (imageBase64.length > 8 * 1024 * 1024) {
     return res.status(413).json({ error: "Image too large" });
   }
 
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return res.status(500).json({ error: "GEMINI_API_KEY not set" });
+  if (!apiKey)
+    return res.status(500).json({ error: "GEMINI_API_KEY not set" });
 
   const body = {
     contents: [
@@ -84,13 +88,23 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const data = await upstream.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) return res.status(502).json({ error: "Empty response from vision service" });
+  const text =
+    data &&
+    data.candidates &&
+    data.candidates[0] &&
+    data.candidates[0].content &&
+    data.candidates[0].content.parts &&
+    data.candidates[0].content.parts[0] &&
+    data.candidates[0].content.parts[0].text;
+  if (!text)
+    return res
+      .status(502)
+      .json({ error: "Empty response from vision service" });
 
   try {
     const parsed = JSON.parse(text);
     return res.status(200).json(parsed);
-  } catch {
+  } catch (e) {
     return res.status(502).json({ error: "Could not parse vision response" });
   }
-}
+};
