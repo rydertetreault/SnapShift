@@ -268,7 +268,7 @@ export default function EventDetailScreen() {
           <Text style={styles.eventTitle}>{event.title}</Text>
           <Text style={styles.dateText}>{dateDisplay}</Text>
           <Text style={styles.timeText}>
-            {displayStart} - {displayEnd}
+            {event.allDay ? "All day" : `${displayStart} - ${displayEnd}`}
           </Text>
 
           {event.notes ? (

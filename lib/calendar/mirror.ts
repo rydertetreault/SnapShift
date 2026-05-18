@@ -49,6 +49,7 @@ export async function mirrorSnapShiftEvents(): Promise<void> {
         startDate: new Date(e.startTime),
         endDate: new Date(e.endTime),
         notes: e.notes,
+        allDay: e.allDay,
       });
       continue;
     }
@@ -57,6 +58,7 @@ export async function mirrorSnapShiftEvents(): Promise<void> {
       startDate: new Date(e.startTime),
       endDate: new Date(e.endTime),
       notes: e.notes,
+      allDay: e.allDay,
     });
     updated[i] = { ...e, iosCalendarEventId: id };
     mutated = true;

@@ -41,8 +41,21 @@ export async function parseScheduleImage(
     throw new Error("No shifts found in this screenshot.");
   }
   const weekStart = vision.weekStart ?? inferTodaysSaturday();
+  // Gemini may omit startTime/endTime for monthly-grid marker schedules.
+  // Synthesize sentinel times and flag those shifts as all-day.
+  const visionShifts: ExtractedShift[] = vision.shifts.map((s) => {
+    const allDay = !s.startTime || !s.endTime;
+    return {
+      dayOfWeek: s.dayOfWeek,
+      date: s.date ?? "",
+      startTime: s.startTime ?? "12:00 AM",
+      endTime: s.endTime ?? "11:59 PM",
+      department: s.department,
+      allDay,
+    };
+  });
   return {
-    shifts: resolveDates(vision.shifts, weekStart),
+    shifts: resolveDates(visionShifts, weekStart),
     weekStart,
     source: "vision",
   };

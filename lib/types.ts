@@ -45,6 +45,9 @@ export interface ScheduleEvent {
   // OR when this SnapShift event has been mirrored to iPhone Calendar (source === "manual" or "ai").
   // The `source` field tells us which case applies. Used for upsert on re-sync and for deep-link "Open in Calendar".
   iosCalendarEventId?: string;
+  // True when the event is an all-day work marker with no specific time
+  // (e.g. detected from a monthly grid OCR). UI hides time, EventKit mirror sets allDay.
+  allDay?: boolean;
 }
 
 export interface ExtractedShift {
@@ -53,4 +56,7 @@ export interface ExtractedShift {
   startTime: string;
   endTime: string;
   department?: string;
+  // True when the source schedule had no specific times (e.g. monthly marker grid).
+  // startTime/endTime will be placeholder sentinel values in that case.
+  allDay?: boolean;
 }

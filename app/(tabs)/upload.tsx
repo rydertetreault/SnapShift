@@ -145,19 +145,27 @@ export default function UploadScreen() {
 
     try {
       const events: ScheduleEvent[] = shifts.map((shift) => {
-        // Parse the human-readable times like "2:00 PM" into Date objects
+        // Parse the human-readable times like "2:00 PM" into Date objects.
+        // For all-day shifts (marker-style schedules), startTime/endTime are
+        // sentinel values ("12:00 AM" / "11:59 PM") so parseTimeString still works.
         const startDate = parseTimeString(shift.startTime, shift.date);
         const endDate = parseTimeString(shift.endTime, shift.date);
+        const title = shift.allDay
+          ? "Work"
+          : shift.department
+            ? shift.department
+            : "Shift";
 
         return {
           id: Math.random().toString(36).substring(2, 10),
-          title: shift.department ? shift.department : "Shift",
+          title,
           date: shift.date,
           startTime: startDate.toISOString(),
           endTime: endDate.toISOString(),
           category: "work" as const,
           source: "ai" as const,
           createdAt: new Date().toISOString(),
+          allDay: shift.allDay,
         };
       });
 

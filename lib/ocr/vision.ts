@@ -1,10 +1,18 @@
-import { ExtractedShift } from "../types";
-
 const PROXY_URL = process.env.EXPO_PUBLIC_PROXY_BASE_URL;
 const PROXY_SECRET = process.env.EXPO_PUBLIC_PROXY_SECRET;
 
+// Gemini may omit startTime/endTime/date for monthly-grid marker schedules.
+// The orchestrator fills sentinels and sets allDay.
+export interface VisionShift {
+  dayOfWeek: string;
+  date?: string;
+  startTime?: string;
+  endTime?: string;
+  department?: string;
+}
+
 export interface VisionParseResult {
-  shifts: ExtractedShift[];
+  shifts: VisionShift[];
   weekStart?: string;
 }
 
