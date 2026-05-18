@@ -1,4 +1,4 @@
-import { ExpoConfig, ConfigContext } from "expo/config";
+import { ConfigContext, ExpoConfig } from "expo/config";
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
@@ -44,8 +44,15 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         backgroundColor: "#2d642a",
       },
     ],
+    "@react-native-community/datetimepicker",
+    "expo-web-browser",
   ],
   experiments: {
     typedRoutes: true,
+  },
+  extra: {
+    eas: {
+      projectId: "9ba1a8a9-913f-496c-a22d-06717ac3331b",
+    },
   },
 });
