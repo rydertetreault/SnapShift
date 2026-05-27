@@ -45,4 +45,9 @@ describe("category preferences", () => {
     await AsyncStorage.setItem("@snapshift/categories", "garbage");
     expect(await getCategoryOverrides()).toEqual({});
   });
+
+  test("array storage falls back to empty overrides", async () => {
+    await AsyncStorage.setItem("@snapshift/categories", JSON.stringify([1, 2, 3]));
+    expect(await getCategoryOverrides()).toEqual({});
+  });
 });

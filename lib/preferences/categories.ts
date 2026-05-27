@@ -11,7 +11,7 @@ export async function getCategoryOverrides(): Promise<CategoryOverrides> {
     const raw = await AsyncStorage.getItem(KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === "object" ? parsed : {};
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
   } catch {
     return {};
   }
