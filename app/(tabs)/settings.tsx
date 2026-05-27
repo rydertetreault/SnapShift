@@ -9,9 +9,11 @@ import {
   Alert,
   Pressable,
   Modal,
+  TextInput,
+  ActivityIndicator,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import { format, parse } from "date-fns";
+import { format, formatDistanceToNow, parse } from "date-fns";
 import {
   hasCalendarAccess,
   requestCalendarAccess,
@@ -43,6 +45,14 @@ import { ALL_CATEGORIES } from "@/lib/constants";
 import { EventCategory } from "@/lib/types";
 import CategoryEditModal from "@/components/CategoryEditModal";
 import Checkbox from "@/components/Checkbox";
+import {
+  getCanvasFeedUrl,
+  getCanvasLastSyncedAt,
+  clearCanvasFeedUrl,
+  looksLikeCanvasFeedUrl,
+} from "@/lib/canvas/preferences";
+import { connectCanvas, syncCanvas } from "@/lib/canvas/sync";
+import { deleteAllCanvasEvents } from "@/lib/storage";
 
 const toDate = (hhmm: string): Date => parse(hhmm, "HH:mm", new Date());
 const toHHmm = (d: Date): string => format(d, "HH:mm");
@@ -61,6 +71,12 @@ export default function SettingsScreen() {
   const [mirrorOn, setMirrorOn] = useState(false);
   const [editingKey, setEditingKey] = useState<EventCategory | null>(null);
 
+  // Canvas state
+  const [canvasUrl, setCanvasUrl] = useState<string | null>(null);
+  const [canvasLastSyncedAt, setCanvasLastSyncedAt] = useState<string | null>(null);
+  const [feedInput, setFeedInput] = useState("");
+  const [canvasBusy, setCanvasBusy] = useState(false);
+
   useEffect(() => {
     refresh();
   }, []);
@@ -77,6 +93,8 @@ export default function SettingsScreen() {
         Alert.alert("Could not load calendars", e.message);
       }
     }
+    setCanvasUrl(await getCanvasFeedUrl());
+    setCanvasLastSyncedAt(await getCanvasLastSyncedAt());
   }
 
   async function handleGrant() {
@@ -115,6 +133,147 @@ export default function SettingsScreen() {
         'Future SnapShift events will not be written to iPhone Calendar. The existing "SnapShift" calendar in iPhone Calendar is not deleted; remove it manually from the Calendar app if you want.'
       );
     }
+  }
+
+  async function handleCanvasConnect() {
+    const url = feedInput.trim();
+    if (!looksLikeCanvasFeedUrl(url)) {
+      Alert.alert(
+        "Doesn't look like a Canvas feed",
+        "Paste the full Calendar Feed URL from Canvas (Calendar → Calendar Feed). It usually ends in .ics."
+      );
+      return;
+    }
+    setCanvasBusy(true);
+    try {
+      const imported = await connectCanvas(url);
+      setFeedInput("");
+      await refresh();
+      Alert.alert("Canvas connected", `${imported} item${imported === 1 ? "" : "s"} imported.`);
+    } catch (e: any) {
+      Alert.alert("Couldn't connect", e?.message ?? "Unknown error fetching feed.");
+    } finally {
+      setCanvasBusy(false);
+    }
+  }
+
+  async function handleCanvasSyncNow() {
+    setCanvasBusy(true);
+    try {
+      const result = await syncCanvas();
+      await refresh();
+      Alert.alert("Synced", `${result.imported} item${result.imported === 1 ? "" : "s"} in your feed.`);
+    } catch (e: any) {
+      Alert.alert("Sync failed", e?.message ?? "Unknown error fetching feed.");
+    } finally {
+      setCanvasBusy(false);
+    }
+  }
+
+  function handleCanvasDisconnect() {
+    Alert.alert(
+      "Disconnect Canvas?",
+      "All imported Canvas events will be removed. Your manual events and OCR'd shifts are unaffected.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Disconnect",
+          style: "destructive",
+          onPress: async () => {
+            setCanvasBusy(true);
+            try {
+              await deleteAllCanvasEvents();
+              await clearCanvasFeedUrl();
+              await refresh();
+            } finally {
+              setCanvasBusy(false);
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  function renderCanvasSection() {
+    return (
+      <>
+        <Text style={[styles.heading, styles.canvasHeading, { color: theme.colors.textPrimary }]}>Canvas</Text>
+        {canvasUrl ? (
+          <View>
+            <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
+              Connected. Your Canvas assignments and calendar events show up as school-category events.
+              {canvasLastSyncedAt
+                ? ` Last synced ${formatDistanceToNow(new Date(canvasLastSyncedAt), { addSuffix: true })}.`
+                : ""}
+            </Text>
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: theme.accent }, canvasBusy && styles.btnDisabled]}
+              onPress={handleCanvasSyncNow}
+              disabled={canvasBusy}
+            >
+              {canvasBusy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryBtnText}>Sync now</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[
+                styles.secondaryBtn,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.disabled,
+                },
+                canvasBusy && styles.btnDisabled,
+              ]}
+              onPress={handleCanvasDisconnect}
+              disabled={canvasBusy}
+            >
+              {/* TODO(v1.3): theme.colors.destructive */}
+              <Text style={[styles.secondaryBtnText, { color: "#F44336" }]}>Disconnect Canvas</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View>
+            <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
+              Paste your Canvas Calendar Feed URL to import assignments and events. In Canvas, open Calendar and tap "Calendar Feed" at the bottom right to copy the link.
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  borderColor: theme.colors.border,
+                  color: theme.colors.textPrimary,
+                  backgroundColor: theme.colors.surface,
+                },
+              ]}
+              value={feedInput}
+              onChangeText={setFeedInput}
+              placeholder="Paste your feed URL here"
+              placeholderTextColor={theme.colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="url"
+              editable={!canvasBusy}
+            />
+            <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+              Tip: long-press the field above and tap Paste.
+            </Text>
+            <TouchableOpacity
+              style={[styles.primaryBtn, { backgroundColor: theme.accent }, canvasBusy && styles.btnDisabled]}
+              onPress={handleCanvasConnect}
+              disabled={canvasBusy || !feedInput.trim()}
+            >
+              {canvasBusy ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.primaryBtnText}>Connect</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+      </>
+    );
   }
 
   if (!granted) {
@@ -222,6 +381,8 @@ export default function SettingsScreen() {
             </Pressable>
           </>
         )}
+
+        {renderCanvasSection()}
 
         <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>iPhone Calendar</Text>
         <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
@@ -399,6 +560,8 @@ export default function SettingsScreen() {
         </>
       )}
 
+      {renderCanvasSection()}
+
       <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>iPhone Calendar</Text>
 
       <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>Show events from</Text>
@@ -501,6 +664,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   heading: { fontSize: 22, fontWeight: "bold", marginBottom: 12 },
+  canvasHeading: { marginTop: 36 },
   body: { fontSize: 15, lineHeight: 22, marginBottom: 20 },
   sectionLabel: {
     fontSize: 13,
@@ -516,6 +680,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryBtnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  secondaryBtn: {
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    borderWidth: 1,
+    marginTop: 10,
+  },
+  secondaryBtnText: { fontSize: 16, fontWeight: "600" },
+  btnDisabled: { opacity: 0.5 },
   row: {
     flexDirection: "row",
     alignItems: "center",
@@ -547,4 +720,15 @@ const styles = StyleSheet.create({
   modalSheet: { padding: 20, borderTopLeftRadius: 16, borderTopRightRadius: 16, alignItems: "stretch" },
   modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12, textAlign: "center" },
   modalDone: { marginTop: 12, paddingVertical: 12, borderRadius: 8, alignItems: "center" },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 14,
+    marginBottom: 6,
+  },
+  hint: {
+    fontSize: 12,
+    marginBottom: 12,
+  },
 });

@@ -51,6 +51,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           "SnapShift uses your iPhone Calendar so you can see existing events alongside SnapShift events, and optionally save SnapShift events back to a dedicated SnapShift calendar.",
       },
     ],
+    [
+      "expo-share-extension",
+      {
+        // Single-URL share: Safari "Calendar Feed" link, Canvas in-app link share, etc.
+        activationRules: [{ type: "url", max: 1 }],
+        height: 260,
+        excludedPackages: [
+          "expo-dev-client",
+          "expo-splash-screen",
+          "expo-updates",
+          "expo-font",
+        ],
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,
