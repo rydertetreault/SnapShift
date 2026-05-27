@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
   Platform,
+  Linking,
 } from "react-native";
 import { useLocalSearchParams, useRouter, useFocusEffect } from "expo-router";
 import { format, parseISO } from "date-fns";
@@ -66,6 +67,15 @@ export default function EventDetailScreen() {
 
   async function handleSave() {
     if (!event) return;
+
+    if (event.source === "canvas") {
+      // Canvas events are read-only except for notes; the feed is the source of truth for everything else.
+      await updateEvent(event.id, { notes: notes.trim() || undefined });
+      setEditing(false);
+      await loadEvent();
+      return;
+    }
+
     if (!title.trim()) {
       Alert.alert("Error", "Title is required");
       return;
@@ -201,52 +211,72 @@ export default function EventDetailScreen() {
             ? "From screenshot"
             : event.source === "ios"
             ? "From iPhone Calendar"
+            : event.source === "canvas"
+            ? "From Canvas"
             : "Manual entry"}
         </Text>
       </View>
 
       {editing ? (
         <View style={styles.form}>
-          <Text style={styles.label}>Title</Text>
-          <TextInput
-            style={styles.input}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="Event title"
-          />
+          {event.source === "canvas" ? (
+            <>
+              <Text style={styles.body}>
+                This event is managed by Canvas. You can add personal notes here — they'll be preserved across syncs.
+              </Text>
+              <Text style={styles.label}>Notes</Text>
+              <TextInput
+                style={[styles.input, styles.notesInput]}
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Your notes (kept across syncs)"
+                multiline
+              />
+            </>
+          ) : (
+            <>
+              <Text style={styles.label}>Title</Text>
+              <TextInput
+                style={styles.input}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Event title"
+              />
 
-          <PickerField
-            label="Date"
-            value={date}
-            mode="date"
-            onChange={setDate}
-          />
+              <PickerField
+                label="Date"
+                value={date}
+                mode="date"
+                onChange={setDate}
+              />
 
-          <PickerField
-            label="Start Time"
-            value={startTime}
-            mode="time"
-            onChange={setStartTime}
-          />
+              <PickerField
+                label="Start Time"
+                value={startTime}
+                mode="time"
+                onChange={setStartTime}
+              />
 
-          <PickerField
-            label="End Time"
-            value={endTime}
-            mode="time"
-            onChange={setEndTime}
-          />
+              <PickerField
+                label="End Time"
+                value={endTime}
+                mode="time"
+                onChange={setEndTime}
+              />
 
-          <Text style={styles.label}>Category</Text>
-          <CategoryPicker selected={category} onSelect={setCategory} />
+              <Text style={styles.label}>Category</Text>
+              <CategoryPicker selected={category} onSelect={setCategory} />
 
-          <Text style={[styles.label, { marginTop: 16 }]}>Notes</Text>
-          <TextInput
-            style={[styles.input, styles.notesInput]}
-            value={notes}
-            onChangeText={setNotes}
-            placeholder="Optional notes"
-            multiline
-          />
+              <Text style={[styles.label, { marginTop: 16 }]}>Notes</Text>
+              <TextInput
+                style={[styles.input, styles.notesInput]}
+                value={notes}
+                onChangeText={setNotes}
+                placeholder="Optional notes"
+                multiline
+              />
+            </>
+          )}
 
           <View style={styles.buttonRow}>
             <TouchableOpacity
@@ -290,6 +320,23 @@ export default function EventDetailScreen() {
               >
                 <Text style={styles.editButtonText}>Open in Calendar</Text>
               </TouchableOpacity>
+            </View>
+          ) : event.source === "canvas" ? (
+            <View style={styles.buttonRow}>
+              <TouchableOpacity
+                style={[styles.button, styles.editButton]}
+                onPress={() => setEditing(true)}
+              >
+                <Text style={styles.editButtonText}>Edit Notes</Text>
+              </TouchableOpacity>
+              {event.externalUrl ? (
+                <TouchableOpacity
+                  style={[styles.button, styles.openExternalButton]}
+                  onPress={() => Linking.openURL(event.externalUrl!)}
+                >
+                  <Text style={styles.openExternalButtonText}>Open in Canvas</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           ) : (
             <View style={styles.buttonRow}>
@@ -374,6 +421,13 @@ const styles = StyleSheet.create({
     color: "#555",
     lineHeight: 22,
   },
+  body: {
+    fontSize: 14,
+    color: "#666",
+    lineHeight: 20,
+    marginBottom: 12,
+    marginTop: 4,
+  },
   label: {
     fontSize: 13,
     fontWeight: "600",
@@ -421,6 +475,16 @@ const styles = StyleSheet.create({
   },
   deleteButtonText: {
     color: "#F44336",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  openExternalButton: {
+    backgroundColor: "#fff",
+    borderWidth: 2,
+    borderColor: "#2196F3",
+  },
+  openExternalButtonText: {
+    color: "#2196F3",
     fontSize: 16,
     fontWeight: "600",
   },
