@@ -15,7 +15,10 @@ export function applyDefaultShift(
   if (!override.enabled) return shifts;
   const start = hhmmToDisplay(override.startTime);
   const end = hhmmToDisplay(override.endTime);
-  return shifts.map((s) =>
-    s.allDay ? s : { ...s, startTime: start, endTime: end }
-  );
+  return shifts.map((s) => ({
+    ...s,
+    startTime: start,
+    endTime: end,
+    allDay: false,
+  }));
 }

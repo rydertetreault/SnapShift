@@ -27,13 +27,13 @@ describe("applyDefaultShift", () => {
     expect(result[1].endTime).toBe("7:00 PM");
   });
 
-  test("preserves all-day shifts (does not overwrite their sentinel times)", () => {
+  test("overrides all-day shifts too (monthly-grid markers get real times)", () => {
     const shifts = [baseShift({ allDay: true, startTime: "12:00 AM", endTime: "11:59 PM" })];
     const override: DefaultShift = { enabled: true, startTime: "07:00", endTime: "19:00" };
     const result = applyDefaultShift(shifts, override);
-    expect(result[0].allDay).toBe(true);
-    expect(result[0].startTime).toBe("12:00 AM");
-    expect(result[0].endTime).toBe("11:59 PM");
+    expect(result[0].allDay).toBe(false);
+    expect(result[0].startTime).toBe("7:00 AM");
+    expect(result[0].endTime).toBe("7:00 PM");
   });
 
   test("preserves date and department fields", () => {
