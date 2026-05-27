@@ -7,6 +7,7 @@ import {
   View,
   Switch,
   Alert,
+  Pressable,
 } from "react-native";
 import {
   hasCalendarAccess,
@@ -23,15 +24,28 @@ import {
 import { syncIosCalendars } from "@/lib/calendar/sync";
 import { mirrorSnapShiftEvents } from "@/lib/calendar/mirror";
 import { useTheme } from "@/lib/theme/ThemeProvider";
-import { ACCENT_PALETTE, setAppearance, useAppearance } from "@/lib/preferences";
+import {
+  ACCENT_PALETTE,
+  setAppearance,
+  useAppearance,
+  resolveCategory,
+  useCategoryOverrides,
+  setCategoryOverrides,
+  CategoryOverrides,
+} from "@/lib/preferences";
+import { ALL_CATEGORIES } from "@/lib/constants";
+import { EventCategory } from "@/lib/types";
+import CategoryEditModal from "@/components/CategoryEditModal";
 
 export default function SettingsScreen() {
   const theme = useTheme();
   const appearance = useAppearance();
+  const overrides = useCategoryOverrides();
   const [granted, setGranted] = useState(false);
   const [calendars, setCalendars] = useState<IosCalendar[]>([]);
   const [selectedIds, setSelectedIdsState] = useState<string[]>([]);
   const [mirrorOn, setMirrorOn] = useState(false);
+  const [editingKey, setEditingKey] = useState<EventCategory | null>(null);
 
   useEffect(() => {
     refresh();
@@ -142,6 +156,22 @@ export default function SettingsScreen() {
           })}
         </View>
 
+        <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>Categories</Text>
+        {ALL_CATEGORIES.map((key) => {
+          const resolved = resolveCategory(key, overrides);
+          return (
+            <Pressable
+              key={key}
+              onPress={() => setEditingKey(key)}
+              style={[styles.categoryRow, { borderBottomColor: theme.colors.border }]}
+            >
+              <View style={[styles.dot, { backgroundColor: resolved.color }]} />
+              <Text style={[styles.categoryName, { color: theme.colors.textPrimary }]}>{resolved.name}</Text>
+              <Text style={[styles.chevron, { color: theme.colors.textMuted }]}>›</Text>
+            </Pressable>
+          );
+        })}
+
         <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>iPhone Calendar</Text>
         <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
           Connect iPhone Calendar to see your existing events alongside SnapShift events, and optionally save SnapShift events back to your iPhone Calendar.
@@ -152,6 +182,27 @@ export default function SettingsScreen() {
         >
           <Text style={styles.primaryBtnText}>Grant Calendar Access</Text>
         </TouchableOpacity>
+
+        <CategoryEditModal
+          visible={editingKey !== null}
+          categoryKey={editingKey}
+          initialName={editingKey ? resolveCategory(editingKey, overrides).name : ""}
+          initialColor={editingKey ? resolveCategory(editingKey, overrides).color : ""}
+          onSave={async (name, color) => {
+            if (!editingKey) return;
+            const next: CategoryOverrides = { ...overrides, [editingKey]: { name, color } };
+            await setCategoryOverrides(next);
+            setEditingKey(null);
+          }}
+          onReset={async () => {
+            if (!editingKey) return;
+            const next: CategoryOverrides = { ...overrides };
+            delete next[editingKey];
+            await setCategoryOverrides(next);
+            setEditingKey(null);
+          }}
+          onCancel={() => setEditingKey(null)}
+        />
       </ScrollView>
     );
   }
@@ -208,6 +259,22 @@ export default function SettingsScreen() {
         })}
       </View>
 
+      <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>Categories</Text>
+      {ALL_CATEGORIES.map((key) => {
+        const resolved = resolveCategory(key, overrides);
+        return (
+          <Pressable
+            key={key}
+            onPress={() => setEditingKey(key)}
+            style={[styles.categoryRow, { borderBottomColor: theme.colors.border }]}
+          >
+            <View style={[styles.dot, { backgroundColor: resolved.color }]} />
+            <Text style={[styles.categoryName, { color: theme.colors.textPrimary }]}>{resolved.name}</Text>
+            <Text style={[styles.chevron, { color: theme.colors.textMuted }]}>›</Text>
+          </Pressable>
+        );
+      })}
+
       <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>iPhone Calendar</Text>
 
       <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>Show events from</Text>
@@ -242,6 +309,27 @@ export default function SettingsScreen() {
         </View>
         <Switch value={mirrorOn} onValueChange={handleMirrorToggle} />
       </View>
+
+      <CategoryEditModal
+        visible={editingKey !== null}
+        categoryKey={editingKey}
+        initialName={editingKey ? resolveCategory(editingKey, overrides).name : ""}
+        initialColor={editingKey ? resolveCategory(editingKey, overrides).color : ""}
+        onSave={async (name, color) => {
+          if (!editingKey) return;
+          const next: CategoryOverrides = { ...overrides, [editingKey]: { name, color } };
+          await setCategoryOverrides(next);
+          setEditingKey(null);
+        }}
+        onReset={async () => {
+          if (!editingKey) return;
+          const next: CategoryOverrides = { ...overrides };
+          delete next[editingKey];
+          await setCategoryOverrides(next);
+          setEditingKey(null);
+        }}
+        onCancel={() => setEditingKey(null)}
+      />
     </ScrollView>
   );
 }
@@ -288,4 +376,7 @@ const styles = StyleSheet.create({
   pillText: { fontSize: 14, fontWeight: "600" },
   swatchRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, paddingVertical: 4, marginBottom: 16 },
   swatch: { width: 36, height: 36, borderRadius: 18, borderWidth: 3 },
+  categoryRow: { flexDirection: "row", alignItems: "center", padding: 12, borderBottomWidth: 1, gap: 12 },
+  categoryName: { flex: 1, fontSize: 15, fontWeight: "500" },
+  chevron: { fontSize: 22, fontWeight: "300" },
 });
