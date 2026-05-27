@@ -76,6 +76,7 @@ export default function CalendarScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
       <Calendar
+        key={`${theme.mode}-${theme.accent}`}
         current={selectedDate}
         onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
         markingType="multi-dot"
