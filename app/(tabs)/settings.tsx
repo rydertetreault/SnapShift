@@ -22,8 +22,10 @@ import {
 } from "@/lib/calendar/preferences";
 import { syncIosCalendars } from "@/lib/calendar/sync";
 import { mirrorSnapShiftEvents } from "@/lib/calendar/mirror";
+import { useTheme } from "@/lib/theme/ThemeProvider";
 
 export default function SettingsScreen() {
+  const theme = useTheme();
   const [granted, setGranted] = useState(false);
   const [calendars, setCalendars] = useState<IosCalendar[]>([]);
   const [selectedIds, setSelectedIdsState] = useState<string[]>([]);
@@ -87,12 +89,18 @@ export default function SettingsScreen() {
 
   if (!granted) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-        <Text style={styles.heading}>iPhone Calendar</Text>
-        <Text style={styles.body}>
+      <ScrollView
+        style={[styles.container, { backgroundColor: theme.colors.surface }]}
+        contentContainerStyle={{ padding: 20 }}
+      >
+        <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>iPhone Calendar</Text>
+        <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
           Connect iPhone Calendar to see your existing events alongside SnapShift events, and optionally save SnapShift events back to your iPhone Calendar.
         </Text>
-        <TouchableOpacity style={styles.primaryBtn} onPress={handleGrant}>
+        <TouchableOpacity
+          style={[styles.primaryBtn, { backgroundColor: theme.accent }]}
+          onPress={handleGrant}
+        >
           <Text style={styles.primaryBtnText}>Grant Calendar Access</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -100,32 +108,39 @@ export default function SettingsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20 }}>
-      <Text style={styles.heading}>iPhone Calendar</Text>
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.colors.surface }]}
+      contentContainerStyle={{ padding: 20 }}
+    >
+      <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>iPhone Calendar</Text>
 
-      <Text style={styles.sectionLabel}>Show events from</Text>
+      <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>Show events from</Text>
       {calendars.map((c) => {
         const active = selectedIds.includes(c.id);
         return (
           <TouchableOpacity
             key={c.id}
-            style={[styles.row, active && styles.rowActive]}
+            style={[
+              styles.row,
+              { borderBottomColor: theme.colors.border },
+              active && { backgroundColor: theme.colors.surfaceAlt },
+            ]}
             onPress={() => toggleCalendar(c.id)}
           >
-            <View style={[styles.dot, { backgroundColor: c.color || "#888" }]} />
+            <View style={[styles.dot, { backgroundColor: c.color || theme.colors.textMuted }]} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowTitle}>{c.title}</Text>
-              <Text style={styles.rowSub}>{c.source}</Text>
+              <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>{c.title}</Text>
+              <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>{c.source}</Text>
             </View>
-            <Text style={styles.check}>{active ? "✓" : ""}</Text>
+            <Text style={[styles.check, { color: theme.accent }]}>{active ? "✓" : ""}</Text>
           </TouchableOpacity>
         );
       })}
 
-      <View style={styles.mirrorRow}>
+      <View style={[styles.mirrorRow, { borderTopColor: theme.colors.border }]}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle}>Save SnapShift events to iPhone Calendar</Text>
-          <Text style={styles.rowSub}>
+          <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>Save SnapShift events to iPhone Calendar</Text>
+          <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>
             Creates a "SnapShift" calendar in the iPhone Calendar app and writes events there.
           </Text>
         </View>
@@ -136,12 +151,11 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1 },
   heading: { fontSize: 22, fontWeight: "bold", marginBottom: 12 },
-  body: { fontSize: 15, color: "#555", lineHeight: 22, marginBottom: 20 },
+  body: { fontSize: 15, lineHeight: 22, marginBottom: 20 },
   sectionLabel: {
     fontSize: 13,
-    color: "#888",
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
@@ -149,7 +163,6 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   primaryBtn: {
-    backgroundColor: "#4CAF50",
     padding: 14,
     borderRadius: 10,
     alignItems: "center",
@@ -160,21 +173,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
     gap: 12,
   },
-  rowActive: { backgroundColor: "#f0f8f0" },
   dot: { width: 14, height: 14, borderRadius: 7 },
-  rowTitle: { fontSize: 15, color: "#222", fontWeight: "500" },
-  rowSub: { fontSize: 12, color: "#888", marginTop: 2 },
-  check: { fontSize: 18, color: "#4CAF50", fontWeight: "700" },
+  rowTitle: { fontSize: 15, fontWeight: "500" },
+  rowSub: { fontSize: 12, marginTop: 2 },
+  check: { fontSize: 18, fontWeight: "700" },
   mirrorRow: {
     flexDirection: "row",
     alignItems: "center",
     padding: 12,
     marginTop: 24,
     borderTopWidth: 1,
-    borderTopColor: "#eee",
     gap: 12,
   },
 });
