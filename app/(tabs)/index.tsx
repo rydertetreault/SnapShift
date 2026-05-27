@@ -80,6 +80,7 @@ export default function CalendarScreen() {
         onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
         markingType="multi-dot"
         markedDates={markedDates}
+        enableSwipeMonths
         theme={{
           selectedDayBackgroundColor: theme.accent,
           todayTextColor: theme.accent,
