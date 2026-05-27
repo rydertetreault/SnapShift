@@ -82,10 +82,20 @@ export default function CalendarScreen() {
         markedDates={markedDates}
         enableSwipeMonths
         theme={{
+          calendarBackground: theme.colors.surface,
+          backgroundColor: theme.colors.surface,
+          dayTextColor: theme.colors.textPrimary,
+          textDisabledColor: theme.colors.disabled,
+          textSectionTitleColor: theme.colors.textMuted,
+          monthTextColor: theme.colors.textPrimary,
+          textMonthFontWeight: "600",
           selectedDayBackgroundColor: theme.accent,
+          selectedDayTextColor: "#fff",
           todayTextColor: theme.accent,
+          todayBackgroundColor: "transparent",
           arrowColor: theme.accent,
           dotColor: theme.accent,
+          selectedDotColor: "#fff",
         }}
       />
 
