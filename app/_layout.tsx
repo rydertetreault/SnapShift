@@ -8,11 +8,31 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { maybeExtendIndefiniteSeries } from "@/lib/seriesMaintenance";
 import { syncIosCalendars } from "@/lib/calendar/sync";
 import { mirrorSnapShiftEvents } from "@/lib/calendar/mirror";
-import { ThemeProvider } from "@/lib/theme/ThemeProvider";
+import { ThemeProvider, useTheme } from "@/lib/theme/ThemeProvider";
 
 export { ErrorBoundary } from "expo-router";
 
 SplashScreen.preventAutoHideAsync();
+
+function ThemedStack() {
+  const theme = useTheme();
+  return (
+    <Stack
+      screenOptions={{
+        headerStyle: { backgroundColor: theme.colors.surface },
+        headerTintColor: theme.colors.textPrimary,
+        headerTitleStyle: { color: theme.colors.textPrimary },
+        contentStyle: { backgroundColor: theme.colors.background },
+      }}
+    >
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="event/[id]"
+        options={{ title: "Event Details", presentation: "modal" }}
+      />
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   const [loaded, error] = useFonts({
@@ -52,13 +72,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen
-            name="event/[id]"
-            options={{ title: "Event Details", presentation: "modal" }}
-          />
-        </Stack>
+        <ThemedStack />
       </ThemeProvider>
     </GestureHandlerRootView>
   );
