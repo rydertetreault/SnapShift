@@ -1,6 +1,8 @@
 import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { EventCategory } from "@/lib/types";
-import { ALL_CATEGORIES, CATEGORY_COLORS, CATEGORY_LABELS } from "@/lib/constants";
+import { ALL_CATEGORIES } from "@/lib/constants";
+import { useTheme } from "@/lib/theme/ThemeProvider";
+import { resolveCategory, useCategoryOverrides } from "@/lib/preferences";
 
 interface CategoryPickerProps {
   selected: EventCategory;
@@ -8,11 +10,13 @@ interface CategoryPickerProps {
 }
 
 export default function CategoryPicker({ selected, onSelect }: CategoryPickerProps) {
+  const theme = useTheme();
+  const overrides = useCategoryOverrides();
   return (
     <View style={styles.container}>
       {ALL_CATEGORIES.map((cat) => {
         const isSelected = cat === selected;
-        const color = CATEGORY_COLORS[cat];
+        const { name, color } = resolveCategory(cat, overrides);
         return (
           <TouchableOpacity
             key={cat}
@@ -30,7 +34,7 @@ export default function CategoryPicker({ selected, onSelect }: CategoryPickerPro
                 { color: isSelected ? "#fff" : color },
               ]}
             >
-              {CATEGORY_LABELS[cat]}
+              {name}
             </Text>
           </TouchableOpacity>
         );

@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View, TouchableOpacity, TextInput } from "react-native";
 import { ExtractedShift } from "@/lib/types";
-import { CATEGORY_COLORS } from "@/lib/constants";
+import { useTheme } from "@/lib/theme/ThemeProvider";
+import { resolveCategory, useCategoryOverrides } from "@/lib/preferences";
 
 interface ShiftReviewCardProps {
   shift: ExtractedShift;
@@ -15,34 +16,63 @@ export default function ShiftReviewCard({
   onUpdate,
   onRemove,
 }: ShiftReviewCardProps) {
+  const theme = useTheme();
+  const overrides = useCategoryOverrides();
+  const workCategory = resolveCategory("work", overrides);
+
   return (
-    <View style={styles.card}>
-      <View style={[styles.bar, { backgroundColor: CATEGORY_COLORS.work }]} />
+    <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
+      <View style={[styles.bar, { backgroundColor: workCategory.color }]} />
       <View style={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.day}>{shift.dayOfWeek}</Text>
+          <Text style={[styles.day, { color: theme.colors.textPrimary }]}>
+            {shift.dayOfWeek}
+          </Text>
           <TouchableOpacity onPress={() => onRemove(index)}>
+            {/* TODO(v1.3): theme.colors.destructive */}
             <Text style={styles.removeText}>Remove</Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.date}>{shift.date}</Text>
+        <Text style={[styles.date, { color: theme.colors.textMuted }]}>
+          {shift.date}
+        </Text>
 
         <View style={styles.timeRow}>
           <View style={styles.timeField}>
-            <Text style={styles.timeLabel}>Start</Text>
+            <Text style={[styles.timeLabel, { color: theme.colors.textMuted }]}>
+              Start
+            </Text>
             <TextInput
-              style={styles.timeInput}
+              style={[
+                styles.timeInput,
+                {
+                  borderColor: theme.colors.border,
+                  color: theme.colors.textPrimary,
+                },
+              ]}
+              placeholderTextColor={theme.colors.textMuted}
               value={shift.startTime}
               onChangeText={(text) =>
                 onUpdate(index, { ...shift, startTime: text })
               }
             />
           </View>
-          <Text style={styles.timeDash}>-</Text>
+          <Text style={[styles.timeDash, { color: theme.colors.textMuted }]}>
+            -
+          </Text>
           <View style={styles.timeField}>
-            <Text style={styles.timeLabel}>End</Text>
+            <Text style={[styles.timeLabel, { color: theme.colors.textMuted }]}>
+              End
+            </Text>
             <TextInput
-              style={styles.timeInput}
+              style={[
+                styles.timeInput,
+                {
+                  borderColor: theme.colors.border,
+                  color: theme.colors.textPrimary,
+                },
+              ]}
+              placeholderTextColor={theme.colors.textMuted}
               value={shift.endTime}
               onChangeText={(text) =>
                 onUpdate(index, { ...shift, endTime: text })
@@ -52,7 +82,9 @@ export default function ShiftReviewCard({
         </View>
 
         {shift.department ? (
-          <Text style={styles.department}>{shift.department}</Text>
+          <Text style={[styles.department, { color: theme.accent }]}>
+            {shift.department}
+          </Text>
         ) : null}
       </View>
     </View>
@@ -62,9 +94,9 @@ export default function ShiftReviewCard({
 const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
-    backgroundColor: "#fff",
     borderRadius: 10,
     marginVertical: 4,
+    // shadowColor stays #000 — it's a shadow tint, not a theme surface color
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -88,7 +120,6 @@ const styles = StyleSheet.create({
   day: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
   },
   removeText: {
     fontSize: 13,
@@ -97,7 +128,6 @@ const styles = StyleSheet.create({
   },
   date: {
     fontSize: 13,
-    color: "#888",
     marginTop: 2,
     marginBottom: 8,
   },
@@ -110,27 +140,22 @@ const styles = StyleSheet.create({
   },
   timeLabel: {
     fontSize: 11,
-    color: "#aaa",
     textTransform: "uppercase",
     marginBottom: 4,
   },
   timeInput: {
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 6,
     padding: 8,
     fontSize: 15,
-    color: "#333",
   },
   timeDash: {
     fontSize: 18,
-    color: "#aaa",
     marginHorizontal: 8,
     marginTop: 14,
   },
   department: {
     fontSize: 12,
-    color: "#4CAF50",
     fontWeight: "500",
     marginTop: 6,
   },
