@@ -15,13 +15,16 @@ import * as Calendar from "expo-calendar";
 import { ScheduleEvent, EventCategory } from "@/lib/types";
 import { getEventById, updateEvent, deleteEvent } from "@/lib/storage";
 import { deleteFutureInSeries, deleteSeries, updateSeries } from "@/lib/storage";
-import { CATEGORY_COLORS, CATEGORY_LABELS } from "@/lib/constants";
 import CategoryPicker from "@/components/CategoryPicker";
 import PickerField from "@/components/PickerField";
+import { useTheme } from "@/lib/theme/ThemeProvider";
+import { useCategoryOverrides, resolveCategory } from "@/lib/preferences";
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const theme = useTheme();
+  const overrides = useCategoryOverrides();
   const [event, setEvent] = useState<ScheduleEvent | null>(null);
   const [editing, setEditing] = useState(false);
 
@@ -178,8 +181,8 @@ export default function EventDetailScreen() {
 
   if (!event) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.loadingText}>Loading...</Text>
+      <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
+        <Text style={[styles.loadingText, { color: theme.colors.textMuted }]}>Loading...</Text>
       </View>
     );
   }
@@ -187,15 +190,16 @@ export default function EventDetailScreen() {
   const displayStart = format(parseISO(event.startTime), "h:mm a");
   const displayEnd = format(parseISO(event.endTime), "h:mm a");
   const dateDisplay = format(parseISO(event.date), "EEEE, MMMM d, yyyy");
-  const color = CATEGORY_COLORS[event.category];
+  const resolved = resolveCategory(event.category, overrides);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.colors.surface }]}
+      contentContainerStyle={styles.content}
+    >
       {/* Color banner */}
-      <View style={[styles.banner, { backgroundColor: color }]}>
-        <Text style={styles.bannerCategory}>
-          {CATEGORY_LABELS[event.category]}
-        </Text>
+      <View style={[styles.banner, { backgroundColor: resolved.color }]}>
+        <Text style={styles.bannerCategory}>{resolved.name}</Text>
         <Text style={styles.bannerSource}>
           {event.source === "ai"
             ? "From screenshot"
@@ -207,12 +211,13 @@ export default function EventDetailScreen() {
 
       {editing ? (
         <View style={styles.form}>
-          <Text style={styles.label}>Title</Text>
+          <Text style={[styles.label, { color: theme.colors.textMuted }]}>Title</Text>
           <TextInput
-            style={styles.input}
+            style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
             value={title}
             onChangeText={setTitle}
             placeholder="Event title"
+            placeholderTextColor={theme.colors.textMuted}
           />
 
           <PickerField
@@ -236,27 +241,32 @@ export default function EventDetailScreen() {
             onChange={setEndTime}
           />
 
-          <Text style={styles.label}>Category</Text>
+          <Text style={[styles.label, { color: theme.colors.textMuted }]}>Category</Text>
           <CategoryPicker selected={category} onSelect={setCategory} />
 
-          <Text style={[styles.label, { marginTop: 16 }]}>Notes</Text>
+          <Text style={[styles.label, { color: theme.colors.textMuted, marginTop: 16 }]}>Notes</Text>
           <TextInput
-            style={[styles.input, styles.notesInput]}
+            style={[
+              styles.input,
+              styles.notesInput,
+              { borderColor: theme.colors.border, color: theme.colors.textPrimary },
+            ]}
             value={notes}
             onChangeText={setNotes}
             placeholder="Optional notes"
+            placeholderTextColor={theme.colors.textMuted}
             multiline
           />
 
           <View style={styles.buttonRow}>
             <TouchableOpacity
-              style={[styles.button, styles.cancelButton]}
+              style={[styles.button, { backgroundColor: theme.colors.surfaceAlt }]}
               onPress={resetEdits}
             >
-              <Text style={styles.cancelButtonText}>Cancel</Text>
+              <Text style={[styles.cancelButtonText, { color: theme.colors.textSecondary }]}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
+              style={[styles.button, { backgroundColor: theme.accent }]}
               onPress={handleSave}
             >
               <Text style={styles.saveButtonText}>Save</Text>
@@ -265,23 +275,23 @@ export default function EventDetailScreen() {
         </View>
       ) : (
         <View style={styles.details}>
-          <Text style={styles.eventTitle}>{event.title}</Text>
-          <Text style={styles.dateText}>{dateDisplay}</Text>
-          <Text style={styles.timeText}>
+          <Text style={[styles.eventTitle, { color: theme.colors.textPrimary }]}>{event.title}</Text>
+          <Text style={[styles.dateText, { color: theme.colors.textSecondary }]}>{dateDisplay}</Text>
+          <Text style={[styles.timeText, { color: theme.colors.textPrimary }]}>
             {event.allDay ? "All day" : `${displayStart} - ${displayEnd}`}
           </Text>
 
           {event.notes ? (
             <View style={styles.notesSection}>
-              <Text style={styles.label}>Notes</Text>
-              <Text style={styles.notesText}>{event.notes}</Text>
+              <Text style={[styles.label, { color: theme.colors.textMuted }]}>Notes</Text>
+              <Text style={[styles.notesText, { color: theme.colors.textSecondary }]}>{event.notes}</Text>
             </View>
           ) : null}
 
           {event.source === "ios" ? (
             <View style={styles.buttonRow}>
               <TouchableOpacity
-                style={[styles.button, styles.editButton]}
+                style={[styles.button, { backgroundColor: theme.accent }]}
                 onPress={() =>
                   Calendar.openEventInCalendarAsync({
                     id: event.iosCalendarEventId!,
@@ -294,13 +304,17 @@ export default function EventDetailScreen() {
           ) : (
             <View style={styles.buttonRow}>
               <TouchableOpacity
-                style={[styles.button, styles.editButton]}
+                style={[styles.button, { backgroundColor: theme.accent }]}
                 onPress={() => setEditing(true)}
               >
                 <Text style={styles.editButtonText}>Edit</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.button, styles.deleteButton]}
+                style={[
+                  styles.button,
+                  styles.deleteButton,
+                  { backgroundColor: theme.colors.surface },
+                ]}
                 onPress={handleDelete}
               >
                 <Text style={styles.deleteButtonText}>Delete</Text>
@@ -316,7 +330,6 @@ export default function EventDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   content: {
     paddingBottom: 40,
@@ -325,7 +338,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 40,
     fontSize: 16,
-    color: "#888",
   },
   banner: {
     padding: 20,
@@ -357,12 +369,10 @@ const styles = StyleSheet.create({
   },
   dateText: {
     fontSize: 16,
-    color: "#555",
     marginTop: 8,
   },
   timeText: {
     fontSize: 18,
-    color: "#333",
     marginTop: 4,
     fontWeight: "500",
   },
@@ -371,13 +381,11 @@ const styles = StyleSheet.create({
   },
   notesText: {
     fontSize: 15,
-    color: "#555",
     lineHeight: 22,
   },
   label: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#888",
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginTop: 20,
@@ -385,7 +393,6 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
@@ -406,37 +413,26 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
-  editButton: {
-    backgroundColor: "#4CAF50",
-  },
   editButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
   },
   deleteButton: {
-    backgroundColor: "#fff",
     borderWidth: 2,
-    borderColor: "#F44336",
+    borderColor: "#F44336", // TODO(v1.3): theme.colors.destructive
   },
   deleteButtonText: {
-    color: "#F44336",
+    color: "#F44336", // TODO(v1.3): theme.colors.destructive
     fontSize: 16,
     fontWeight: "600",
-  },
-  saveButton: {
-    backgroundColor: "#4CAF50",
   },
   saveButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
   },
-  cancelButton: {
-    backgroundColor: "#f5f5f5",
-  },
   cancelButtonText: {
-    color: "#555",
     fontSize: 16,
     fontWeight: "600",
   },
