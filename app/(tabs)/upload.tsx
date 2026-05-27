@@ -2,9 +2,12 @@ import ShiftReviewCard from "@/components/ShiftReviewCard";
 import { parseScheduleImage } from "@/lib/ocr";
 import { reportFailedScreenshot } from "@/lib/ocr/vision";
 import { resolveDates } from "@/lib/ocr/weekResolve";
+import { useDefaultShift, DefaultShift } from "@/lib/preferences";
 import { saveMultipleEvents } from "@/lib/storage";
 import { useTheme } from "@/lib/theme/ThemeProvider";
 import { ExtractedShift, ScheduleEvent } from "@/lib/types";
+import { applyDefaultShift, hhmmToDisplay } from "@/lib/upload/applyDefaultShift";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import {
   addDays,
   addWeeks,
@@ -22,6 +25,8 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -47,6 +52,19 @@ export default function UploadScreen() {
     preview?: string;
   } | null>(null);
   const [reportSending, setReportSending] = useState(false);
+
+  const persistedDefault = useDefaultShift();
+  const [perUploadOverride, setPerUploadOverride] = useState<DefaultShift | null>(null);
+  const [overrideActive, setOverrideActive] = useState(false);
+  const [originalShifts, setOriginalShifts] = useState<ExtractedShift[] | null>(null);
+  const [editDefaultVisible, setEditDefaultVisible] = useState(false);
+
+  const effective: DefaultShift = perUploadOverride ?? persistedDefault;
+
+  function disableOverrideForThisUpload() {
+    setOverrideActive(false);
+    if (originalShifts) setShifts(originalShifts);
+  }
 
   async function pickImage() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -105,7 +123,14 @@ export default function UploadScreen() {
       }
 
       setWeekStart(parseISO(result.weekStart));
-      setShifts(result.shifts);
+      setOriginalShifts(result.shifts);
+      if (effective.enabled) {
+        setOverrideActive(true);
+        setShifts(applyDefaultShift(result.shifts, effective));
+      } else {
+        setOverrideActive(false);
+        setShifts(result.shifts);
+      }
       setStep("review");
     } catch (error: any) {
       setFailedImage({
@@ -194,6 +219,10 @@ export default function UploadScreen() {
     setShifts([]);
     setWeekStart(startOfWeek(new Date(), { weekStartsOn: 6 }));
     setFailedImage(null);
+    setOverrideActive(false);
+    setPerUploadOverride(null);
+    setOriginalShifts(null);
+    setEditDefaultVisible(false);
   }
 
   async function handleReportFailed() {
@@ -355,6 +384,41 @@ export default function UploadScreen() {
 
       {step === "review" && (
         <>
+          {overrideActive && (
+            <View
+              style={[
+                styles.banner,
+                {
+                  backgroundColor: theme.colors.surfaceAlt,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={[styles.bannerTitle, { color: theme.colors.textPrimary }]}
+              >
+                Using default shift hours — {hhmmToDisplay(effective.startTime)} to {hhmmToDisplay(effective.endTime)}
+              </Text>
+              <View style={styles.bannerActions}>
+                <Pressable onPress={() => setEditDefaultVisible(true)}>
+                  <Text style={[styles.bannerAction, { color: theme.accent }]}>
+                    Edit
+                  </Text>
+                </Pressable>
+                <Pressable onPress={disableOverrideForThisUpload}>
+                  <Text
+                    style={[
+                      styles.bannerAction,
+                      { color: theme.colors.textSecondary },
+                    ]}
+                  >
+                    Disable for this upload
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
           <Text
             style={[styles.reviewHeading, { color: theme.colors.textPrimary }]}
           >
@@ -399,8 +463,87 @@ export default function UploadScreen() {
           </TouchableOpacity>
         </>
       )}
+
+      <Modal visible={editDefaultVisible} animationType="slide" transparent>
+        <View style={styles.modalBackdrop}>
+          <View
+            style={[
+              styles.modalSheet,
+              { backgroundColor: theme.colors.surface },
+            ]}
+          >
+            <Text
+              style={[styles.modalTitle, { color: theme.colors.textPrimary }]}
+            >
+              Edit hours for this upload
+            </Text>
+            <View style={styles.modalRow}>
+              <Text
+                style={[styles.modalLabel, { color: theme.colors.textMuted }]}
+              >
+                Start
+              </Text>
+              <DateTimePicker
+                value={parseHHmm(effective.startTime)}
+                mode="time"
+                display="default"
+                themeVariant={theme.mode}
+                onChange={(_, selected) => {
+                  if (selected) {
+                    const next: DefaultShift = {
+                      ...effective,
+                      startTime: formatHHmm(selected),
+                    };
+                    setPerUploadOverride(next);
+                    if (originalShifts)
+                      setShifts(applyDefaultShift(originalShifts, next));
+                  }
+                }}
+              />
+            </View>
+            <View style={styles.modalRow}>
+              <Text
+                style={[styles.modalLabel, { color: theme.colors.textMuted }]}
+              >
+                End
+              </Text>
+              <DateTimePicker
+                value={parseHHmm(effective.endTime)}
+                mode="time"
+                display="default"
+                themeVariant={theme.mode}
+                onChange={(_, selected) => {
+                  if (selected) {
+                    const next: DefaultShift = {
+                      ...effective,
+                      endTime: formatHHmm(selected),
+                    };
+                    setPerUploadOverride(next);
+                    if (originalShifts)
+                      setShifts(applyDefaultShift(originalShifts, next));
+                  }
+                }}
+              />
+            </View>
+            <Pressable
+              onPress={() => setEditDefaultVisible(false)}
+              style={[styles.modalDone, { backgroundColor: theme.accent }]}
+            >
+              <Text style={{ color: "#fff", fontWeight: "700" }}>Done</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
+}
+
+function parseHHmm(hhmm: string): Date {
+  return parse(hhmm, "HH:mm", new Date());
+}
+
+function formatHHmm(d: Date): string {
+  return format(d, "HH:mm");
 }
 
 /**
@@ -567,5 +710,57 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 15,
     fontWeight: "700",
+  },
+  banner: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 12,
+  },
+  bannerTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+  bannerActions: {
+    flexDirection: "row",
+    gap: 16,
+  },
+  bannerAction: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
+  modalBackdrop: {
+    flex: 1,
+    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalSheet: {
+    padding: 20,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 16,
+  },
+  modalRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+  },
+  modalLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  modalDone: {
+    marginTop: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
   },
 });
