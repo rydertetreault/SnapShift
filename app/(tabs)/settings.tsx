@@ -41,6 +41,7 @@ import {
 import { ALL_CATEGORIES } from "@/lib/constants";
 import { EventCategory } from "@/lib/types";
 import CategoryEditModal from "@/components/CategoryEditModal";
+import Checkbox from "@/components/Checkbox";
 
 const toDate = (hhmm: string): Date => parse(hhmm, "HH:mm", new Date());
 const toHHmm = (d: Date): string => format(d, "HH:mm");
@@ -442,7 +443,11 @@ export default function SettingsScreen() {
               <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>{c.title}</Text>
               <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>{c.source}</Text>
             </View>
-            <Text style={[styles.check, { color: theme.accent }]}>{active ? "✓" : ""}</Text>
+            <Checkbox
+              checked={active}
+              onChange={() => toggleCalendar(c.id)}
+              accessibilityLabel={`Show events from ${c.title}`}
+            />
           </TouchableOpacity>
         );
       })}
@@ -510,7 +515,6 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 15, fontWeight: "500" },
   rowSub: { fontSize: 12, marginTop: 2 },
   rowValue: { fontSize: 15, fontWeight: "600" },
-  check: { fontSize: 18, fontWeight: "700" },
   mirrorRow: {
     flexDirection: "row",
     alignItems: "center",
