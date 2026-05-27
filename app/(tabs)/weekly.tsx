@@ -5,6 +5,7 @@ import {
   View,
   ScrollView,
   TouchableOpacity,
+  Dimensions,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
@@ -17,12 +18,22 @@ import {
   isSameDay,
 } from "date-fns";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import { runOnJS } from "react-native-reanimated";
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+  runOnJS,
+} from "react-native-reanimated";
 import { ScheduleEvent } from "@/lib/types";
 import { getAllEvents } from "@/lib/storage";
 import { useTheme } from "@/lib/theme/ThemeProvider";
 import { resolveCategory, useCategoryOverrides } from "@/lib/preferences";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
+const SWIPE_VELOCITY = 500;
+const SLIDE_DURATION = 200;
 
 export default function WeeklyScreen() {
   const theme = useTheme();
@@ -56,24 +67,47 @@ export default function WeeklyScreen() {
 
   const today = new Date();
 
-  const goNextWeek = useCallback(() => {
-    setWeekStart((prev) => addWeeks(prev, 1));
-  }, []);
-  const goPrevWeek = useCallback(() => {
-    setWeekStart((prev) => subWeeks(prev, 1));
+  const translateX = useSharedValue(0);
+
+  const commitWeekChange = useCallback((direction: "next" | "prev") => {
+    if (direction === "next") setWeekStart((prev) => addWeeks(prev, 1));
+    else setWeekStart((prev) => subWeeks(prev, 1));
   }, []);
 
   const pan = Gesture.Pan()
     .activeOffsetX([-15, 15])
     .failOffsetY([-10, 10])
+    .onUpdate((e) => {
+      'worklet';
+      translateX.value = e.translationX;
+    })
     .onEnd((e) => {
       'worklet';
-      const fast = Math.abs(e.velocityX) > 400;
-      const far = Math.abs(e.translationX) > 60;
-      if (!fast && !far) return;
-      if (e.translationX < 0) runOnJS(goNextWeek)();
-      else runOnJS(goPrevWeek)();
+      const fast = Math.abs(e.velocityX) > SWIPE_VELOCITY;
+      const far = Math.abs(e.translationX) > SWIPE_THRESHOLD;
+
+      if (!fast && !far) {
+        translateX.value = withTiming(0, { duration: SLIDE_DURATION });
+        return;
+      }
+
+      const direction: "next" | "prev" = e.translationX < 0 ? "next" : "prev";
+      const offscreen = direction === "next" ? -SCREEN_WIDTH : SCREEN_WIDTH;
+      translateX.value = withTiming(
+        offscreen,
+        { duration: SLIDE_DURATION },
+        (finished) => {
+          if (finished) {
+            runOnJS(commitWeekChange)(direction);
+            translateX.value = 0;
+          }
+        }
+      );
     });
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
 
   return (
     <GestureDetector gesture={pan}>
@@ -115,6 +149,7 @@ export default function WeeklyScreen() {
       </View>
 
       {/* Day rows */}
+      <Animated.View style={[{ flex: 1 }, animatedStyle]}>
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.rowsContainer}
@@ -220,6 +255,7 @@ export default function WeeklyScreen() {
           );
         })}
       </ScrollView>
+      </Animated.View>
     </View>
     </GestureDetector>
   );
