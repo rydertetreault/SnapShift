@@ -7,6 +7,7 @@ import { AppState } from "react-native";
 import { maybeExtendIndefiniteSeries } from "@/lib/seriesMaintenance";
 import { syncIosCalendars } from "@/lib/calendar/sync";
 import { mirrorSnapShiftEvents } from "@/lib/calendar/mirror";
+import { ThemeProvider } from "@/lib/theme/ThemeProvider";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -48,12 +49,14 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen
-        name="event/[id]"
-        options={{ title: "Event Details", presentation: "modal" }}
-      />
-    </Stack>
+    <ThemeProvider>
+      <Stack>
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="event/[id]"
+          options={{ title: "Event Details", presentation: "modal" }}
+        />
+      </Stack>
+    </ThemeProvider>
   );
 }
