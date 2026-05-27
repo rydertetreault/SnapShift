@@ -15,8 +15,6 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     bundleIdentifier: "dev.rydertetreault.snapshift",
     buildNumber: "3",
     infoPlist: {
-      NSCameraUsageDescription:
-        "SnapShift uses the camera so you can take a photo of your work schedule. The image may be sent to an AI service for reading when our local parser cannot recognize the format.",
       NSPhotoLibraryUsageDescription:
         "SnapShift needs access to your photo library so you can upload schedule screenshots. Selected images may be sent to an AI service for reading when our local parser cannot recognize the format.",
       ITSAppUsesNonExemptEncryption: false,

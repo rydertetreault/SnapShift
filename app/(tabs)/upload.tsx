@@ -48,28 +48,21 @@ export default function UploadScreen() {
   } | null>(null);
   const [reportSending, setReportSending] = useState(false);
 
-  async function pickImage(useCamera: boolean) {
-    const permission = useCamera
-      ? await ImagePicker.requestCameraPermissionsAsync()
-      : await ImagePicker.requestMediaLibraryPermissionsAsync();
+  async function pickImage() {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
     if (!permission.granted) {
       Alert.alert(
         "Permission needed",
-        `Please allow ${useCamera ? "camera" : "photo library"} access to upload schedules.`
+        "Please allow photo library access to upload schedules."
       );
       return;
     }
 
-    const result = useCamera
-      ? await ImagePicker.launchCameraAsync({
-          mediaTypes: ["images"],
-          quality: 0.8,
-        })
-      : await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ["images"],
-          quality: 0.8,
-        });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.8,
+    });
 
     if (result.canceled || !result.assets[0]) return;
 
@@ -322,27 +315,10 @@ export default function UploadScreen() {
 
           <TouchableOpacity
             style={[styles.pickButton, { backgroundColor: theme.accent }]}
-            onPress={() => pickImage(false)}
+            onPress={pickImage}
             activeOpacity={0.8}
           >
             <Text style={styles.pickButtonText}>Choose from Library</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.pickButton,
-              styles.cameraButton,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.accent,
-              },
-            ]}
-            onPress={() => pickImage(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.cameraButtonText, { color: theme.accent }]}>
-              Take Photo
-            </Text>
           </TouchableOpacity>
 
           <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
@@ -515,13 +491,6 @@ const styles = StyleSheet.create({
   },
   pickButtonText: {
     color: "#fff",
-    fontSize: 17,
-    fontWeight: "700",
-  },
-  cameraButton: {
-    borderWidth: 2,
-  },
-  cameraButtonText: {
     fontSize: 17,
     fontWeight: "700",
   },
