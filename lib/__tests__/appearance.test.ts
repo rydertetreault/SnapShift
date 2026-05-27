@@ -39,10 +39,10 @@ describe("appearance preferences", () => {
     expect(result).toEqual(DEFAULT_APPEARANCE);
   });
 
-  test("preset palette contains 12 unique hex values", () => {
-    expect(ACCENT_PALETTE).toHaveLength(12);
+  test("preset palette contains 13 unique hex values", () => {
+    expect(ACCENT_PALETTE).toHaveLength(13);
     const unique = new Set(ACCENT_PALETTE);
-    expect(unique.size).toBe(12);
+    expect(unique.size).toBe(13);
     ACCENT_PALETTE.forEach((c) => expect(c).toMatch(/^#[0-9A-F]{6}$/i));
   });
 });

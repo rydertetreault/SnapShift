@@ -15,8 +15,9 @@ export const ACCENT_PALETTE = [
   "#3F51B5", // indigo
   "#E91E63", // pink
   "#795548", // brown
-  "#37474F", // slate
+  "#263238", // charcoal
   "#000000", // mono
+  "#FFFFFF", // white
 ] as const;
 
 export const DEFAULT_APPEARANCE: Appearance = {
