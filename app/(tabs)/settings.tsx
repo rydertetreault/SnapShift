@@ -8,6 +8,7 @@ import {
   Switch,
   Alert,
   Pressable,
+  Modal,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { format, parse } from "date-fns";
@@ -53,8 +54,7 @@ export default function SettingsScreen() {
   const appearance = useAppearance();
   const overrides = useCategoryOverrides();
   const defaultShift = useDefaultShift();
-  const [showStartPicker, setShowStartPicker] = useState(false);
-  const [showEndPicker, setShowEndPicker] = useState(false);
+  const [shiftPickerMode, setShiftPickerMode] = useState<null | "start" | "end">(null);
   const [granted, setGranted] = useState(false);
   const [calendars, setCalendars] = useState<IosCalendar[]>([]);
   const [selectedIds, setSelectedIdsState] = useState<string[]>([]);
@@ -207,49 +207,19 @@ export default function SettingsScreen() {
         {defaultShift.enabled && (
           <>
             <Pressable
-              onPress={() => setShowStartPicker(true)}
+              onPress={() => setShiftPickerMode("start")}
               style={[styles.row, { borderBottomColor: theme.colors.border }]}
             >
               <Text style={[styles.rowTitle, { color: theme.colors.textPrimary, flex: 1 }]}>Start</Text>
               <Text style={[styles.rowValue, { color: theme.accent }]}>{toDisplay(defaultShift.startTime)}</Text>
             </Pressable>
             <Pressable
-              onPress={() => setShowEndPicker(true)}
+              onPress={() => setShiftPickerMode("end")}
               style={[styles.row, { borderBottomColor: theme.colors.border }]}
             >
               <Text style={[styles.rowTitle, { color: theme.colors.textPrimary, flex: 1 }]}>End</Text>
               <Text style={[styles.rowValue, { color: theme.accent }]}>{toDisplay(defaultShift.endTime)}</Text>
             </Pressable>
-            {showStartPicker && (
-              <DateTimePicker
-                value={toDate(defaultShift.startTime)}
-                mode="time"
-                display="default"
-                themeVariant={theme.mode}
-                onChange={(event, selected) => {
-                  setShowStartPicker(false);
-                  if (selected) {
-                    const next: DefaultShift = { ...defaultShift, startTime: toHHmm(selected) };
-                    setDefaultShift(next);
-                  }
-                }}
-              />
-            )}
-            {showEndPicker && (
-              <DateTimePicker
-                value={toDate(defaultShift.endTime)}
-                mode="time"
-                display="default"
-                themeVariant={theme.mode}
-                onChange={(event, selected) => {
-                  setShowEndPicker(false);
-                  if (selected) {
-                    const next: DefaultShift = { ...defaultShift, endTime: toHHmm(selected) };
-                    setDefaultShift(next);
-                  }
-                }}
-              />
-            )}
           </>
         )}
 
@@ -284,6 +254,42 @@ export default function SettingsScreen() {
           }}
           onCancel={() => setEditingKey(null)}
         />
+
+        <Modal visible={shiftPickerMode !== null} animationType="slide" transparent>
+          <View style={[styles.modalBackdrop, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
+            <View style={[styles.modalSheet, { backgroundColor: theme.colors.surface }]}>
+              <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
+                {shiftPickerMode === "start" ? "Start time" : "End time"}
+              </Text>
+              {shiftPickerMode && (
+                <DateTimePicker
+                  value={toDate(
+                    shiftPickerMode === "start"
+                      ? defaultShift.startTime
+                      : defaultShift.endTime
+                  )}
+                  mode="time"
+                  display="spinner"
+                  themeVariant={theme.mode}
+                  onChange={(_, selected) => {
+                    if (!selected) return;
+                    const next: DefaultShift =
+                      shiftPickerMode === "start"
+                        ? { ...defaultShift, startTime: toHHmm(selected) }
+                        : { ...defaultShift, endTime: toHHmm(selected) };
+                    setDefaultShift(next);
+                  }}
+                />
+              )}
+              <Pressable
+                onPress={() => setShiftPickerMode(null)}
+                style={[styles.modalDone, { backgroundColor: theme.accent }]}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700" }}>Done</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       </ScrollView>
     );
   }
@@ -377,49 +383,19 @@ export default function SettingsScreen() {
       {defaultShift.enabled && (
         <>
           <Pressable
-            onPress={() => setShowStartPicker(true)}
+            onPress={() => setShiftPickerMode("start")}
             style={[styles.row, { borderBottomColor: theme.colors.border }]}
           >
             <Text style={[styles.rowTitle, { color: theme.colors.textPrimary, flex: 1 }]}>Start</Text>
             <Text style={[styles.rowValue, { color: theme.accent }]}>{toDisplay(defaultShift.startTime)}</Text>
           </Pressable>
           <Pressable
-            onPress={() => setShowEndPicker(true)}
+            onPress={() => setShiftPickerMode("end")}
             style={[styles.row, { borderBottomColor: theme.colors.border }]}
           >
             <Text style={[styles.rowTitle, { color: theme.colors.textPrimary, flex: 1 }]}>End</Text>
             <Text style={[styles.rowValue, { color: theme.accent }]}>{toDisplay(defaultShift.endTime)}</Text>
           </Pressable>
-          {showStartPicker && (
-            <DateTimePicker
-              value={toDate(defaultShift.startTime)}
-              mode="time"
-              display="default"
-              themeVariant={theme.mode}
-              onChange={(event, selected) => {
-                setShowStartPicker(false);
-                if (selected) {
-                  const next: DefaultShift = { ...defaultShift, startTime: toHHmm(selected) };
-                  setDefaultShift(next);
-                }
-              }}
-            />
-          )}
-          {showEndPicker && (
-            <DateTimePicker
-              value={toDate(defaultShift.endTime)}
-              mode="time"
-              display="default"
-              themeVariant={theme.mode}
-              onChange={(event, selected) => {
-                setShowEndPicker(false);
-                if (selected) {
-                  const next: DefaultShift = { ...defaultShift, endTime: toHHmm(selected) };
-                  setDefaultShift(next);
-                }
-              }}
-            />
-          )}
         </>
       )}
 
@@ -482,6 +458,42 @@ export default function SettingsScreen() {
         }}
         onCancel={() => setEditingKey(null)}
       />
+
+      <Modal visible={shiftPickerMode !== null} animationType="slide" transparent>
+        <View style={[styles.modalBackdrop, { backgroundColor: "rgba(0,0,0,0.5)" }]}>
+          <View style={[styles.modalSheet, { backgroundColor: theme.colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: theme.colors.textPrimary }]}>
+              {shiftPickerMode === "start" ? "Start time" : "End time"}
+            </Text>
+            {shiftPickerMode && (
+              <DateTimePicker
+                value={toDate(
+                  shiftPickerMode === "start"
+                    ? defaultShift.startTime
+                    : defaultShift.endTime
+                )}
+                mode="time"
+                display="spinner"
+                themeVariant={theme.mode}
+                onChange={(_, selected) => {
+                  if (!selected) return;
+                  const next: DefaultShift =
+                    shiftPickerMode === "start"
+                      ? { ...defaultShift, startTime: toHHmm(selected) }
+                      : { ...defaultShift, endTime: toHHmm(selected) };
+                  setDefaultShift(next);
+                }}
+              />
+            )}
+            <Pressable
+              onPress={() => setShiftPickerMode(null)}
+              style={[styles.modalDone, { backgroundColor: theme.accent }]}
+            >
+              <Text style={{ color: "#fff", fontWeight: "700" }}>Done</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -531,4 +543,8 @@ const styles = StyleSheet.create({
   categoryRow: { flexDirection: "row", alignItems: "center", padding: 12, borderBottomWidth: 1, gap: 12 },
   categoryName: { flex: 1, fontSize: 15, fontWeight: "500" },
   chevron: { fontSize: 22, fontWeight: "300" },
+  modalBackdrop: { flex: 1, justifyContent: "flex-end" },
+  modalSheet: { padding: 20, borderTopLeftRadius: 16, borderTopRightRadius: 16, alignItems: "stretch" },
+  modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 12, textAlign: "center" },
+  modalDone: { marginTop: 12, paddingVertical: 12, borderRadius: 8, alignItems: "center" },
 });
