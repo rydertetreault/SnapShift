@@ -15,7 +15,7 @@ export const ACCENT_PALETTE = [
   "#3F51B5", // indigo
   "#E91E63", // pink
   "#795548", // brown
-  "#607D8B", // blue-grey
+  "#37474F", // slate
   "#000000", // mono
 ] as const;
 
