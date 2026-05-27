@@ -6,15 +6,15 @@ const KEY = "@snapshift/appearance";
 
 export const ACCENT_PALETTE = [
   "#4CAF50", // green (default)
+  "#8BC34A", // lime
+  "#009688", // teal
+  "#00BCD4", // cyan
   "#2196F3", // blue
   "#9C27B0", // purple
+  "#E91E63", // pink
   "#F44336", // red
   "#FF9800", // orange
   "#FFC107", // amber
-  "#009688", // teal
-  "#3F51B5", // indigo
-  "#E91E63", // pink
-  "#795548", // brown
   "#263238", // charcoal
   "#000000", // mono
 ] as const;
