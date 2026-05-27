@@ -9,6 +9,8 @@ import {
   Alert,
   Pressable,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { format, parse } from "date-fns";
 import {
   hasCalendarAccess,
   requestCalendarAccess,
@@ -32,15 +34,26 @@ import {
   useCategoryOverrides,
   setCategoryOverrides,
   CategoryOverrides,
+  useDefaultShift,
+  setDefaultShift,
+  DefaultShift,
 } from "@/lib/preferences";
 import { ALL_CATEGORIES } from "@/lib/constants";
 import { EventCategory } from "@/lib/types";
 import CategoryEditModal from "@/components/CategoryEditModal";
 
+const toDate = (hhmm: string): Date => parse(hhmm, "HH:mm", new Date());
+const toHHmm = (d: Date): string => format(d, "HH:mm");
+const toDisplay = (hhmm: string): string =>
+  format(parse(hhmm, "HH:mm", new Date()), "h:mm a");
+
 export default function SettingsScreen() {
   const theme = useTheme();
   const appearance = useAppearance();
   const overrides = useCategoryOverrides();
+  const defaultShift = useDefaultShift();
+  const [showStartPicker, setShowStartPicker] = useState(false);
+  const [showEndPicker, setShowEndPicker] = useState(false);
   const [granted, setGranted] = useState(false);
   const [calendars, setCalendars] = useState<IosCalendar[]>([]);
   const [selectedIds, setSelectedIdsState] = useState<string[]>([]);
@@ -172,6 +185,73 @@ export default function SettingsScreen() {
           );
         })}
 
+        <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>Default Shift Hours</Text>
+        <View style={[styles.row, { borderBottomColor: theme.colors.border }]}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>
+              Override extracted shift times
+            </Text>
+            <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>
+              Apply a fixed start/end time to every uploaded shift.
+            </Text>
+          </View>
+          <Switch
+            value={defaultShift.enabled}
+            onValueChange={(enabled) => {
+              const next: DefaultShift = { ...defaultShift, enabled };
+              setDefaultShift(next);
+            }}
+          />
+        </View>
+        {defaultShift.enabled && (
+          <>
+            <Pressable
+              onPress={() => setShowStartPicker(true)}
+              style={[styles.row, { borderBottomColor: theme.colors.border }]}
+            >
+              <Text style={[styles.rowTitle, { color: theme.colors.textPrimary, flex: 1 }]}>Start</Text>
+              <Text style={[styles.rowValue, { color: theme.accent }]}>{toDisplay(defaultShift.startTime)}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => setShowEndPicker(true)}
+              style={[styles.row, { borderBottomColor: theme.colors.border }]}
+            >
+              <Text style={[styles.rowTitle, { color: theme.colors.textPrimary, flex: 1 }]}>End</Text>
+              <Text style={[styles.rowValue, { color: theme.accent }]}>{toDisplay(defaultShift.endTime)}</Text>
+            </Pressable>
+            {showStartPicker && (
+              <DateTimePicker
+                value={toDate(defaultShift.startTime)}
+                mode="time"
+                display="default"
+                themeVariant={theme.mode}
+                onChange={(event, selected) => {
+                  setShowStartPicker(false);
+                  if (selected) {
+                    const next: DefaultShift = { ...defaultShift, startTime: toHHmm(selected) };
+                    setDefaultShift(next);
+                  }
+                }}
+              />
+            )}
+            {showEndPicker && (
+              <DateTimePicker
+                value={toDate(defaultShift.endTime)}
+                mode="time"
+                display="default"
+                themeVariant={theme.mode}
+                onChange={(event, selected) => {
+                  setShowEndPicker(false);
+                  if (selected) {
+                    const next: DefaultShift = { ...defaultShift, endTime: toHHmm(selected) };
+                    setDefaultShift(next);
+                  }
+                }}
+              />
+            )}
+          </>
+        )}
+
         <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>iPhone Calendar</Text>
         <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
           Connect iPhone Calendar to see your existing events alongside SnapShift events, and optionally save SnapShift events back to your iPhone Calendar.
@@ -275,6 +355,73 @@ export default function SettingsScreen() {
         );
       })}
 
+      <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>Default Shift Hours</Text>
+      <View style={[styles.row, { borderBottomColor: theme.colors.border }]}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>
+            Override extracted shift times
+          </Text>
+          <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>
+            Apply a fixed start/end time to every uploaded shift.
+          </Text>
+        </View>
+        <Switch
+          value={defaultShift.enabled}
+          onValueChange={(enabled) => {
+            const next: DefaultShift = { ...defaultShift, enabled };
+            setDefaultShift(next);
+          }}
+        />
+      </View>
+      {defaultShift.enabled && (
+        <>
+          <Pressable
+            onPress={() => setShowStartPicker(true)}
+            style={[styles.row, { borderBottomColor: theme.colors.border }]}
+          >
+            <Text style={[styles.rowTitle, { color: theme.colors.textPrimary, flex: 1 }]}>Start</Text>
+            <Text style={[styles.rowValue, { color: theme.accent }]}>{toDisplay(defaultShift.startTime)}</Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setShowEndPicker(true)}
+            style={[styles.row, { borderBottomColor: theme.colors.border }]}
+          >
+            <Text style={[styles.rowTitle, { color: theme.colors.textPrimary, flex: 1 }]}>End</Text>
+            <Text style={[styles.rowValue, { color: theme.accent }]}>{toDisplay(defaultShift.endTime)}</Text>
+          </Pressable>
+          {showStartPicker && (
+            <DateTimePicker
+              value={toDate(defaultShift.startTime)}
+              mode="time"
+              display="default"
+              themeVariant={theme.mode}
+              onChange={(event, selected) => {
+                setShowStartPicker(false);
+                if (selected) {
+                  const next: DefaultShift = { ...defaultShift, startTime: toHHmm(selected) };
+                  setDefaultShift(next);
+                }
+              }}
+            />
+          )}
+          {showEndPicker && (
+            <DateTimePicker
+              value={toDate(defaultShift.endTime)}
+              mode="time"
+              display="default"
+              themeVariant={theme.mode}
+              onChange={(event, selected) => {
+                setShowEndPicker(false);
+                if (selected) {
+                  const next: DefaultShift = { ...defaultShift, endTime: toHHmm(selected) };
+                  setDefaultShift(next);
+                }
+              }}
+            />
+          )}
+        </>
+      )}
+
       <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>iPhone Calendar</Text>
 
       <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>Show events from</Text>
@@ -362,6 +509,7 @@ const styles = StyleSheet.create({
   dot: { width: 14, height: 14, borderRadius: 7 },
   rowTitle: { fontSize: 15, fontWeight: "500" },
   rowSub: { fontSize: 12, marginTop: 2 },
+  rowValue: { fontSize: 15, fontWeight: "600" },
   check: { fontSize: 18, fontWeight: "700" },
   mirrorRow: {
     flexDirection: "row",
