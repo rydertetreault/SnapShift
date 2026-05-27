@@ -17,7 +17,6 @@ export const ACCENT_PALETTE = [
   "#795548", // brown
   "#263238", // charcoal
   "#000000", // mono
-  "#FFFFFF", // white
 ] as const;
 
 export const DEFAULT_APPEARANCE: Appearance = {
