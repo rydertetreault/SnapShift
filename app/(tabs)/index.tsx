@@ -11,7 +11,8 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { format, parseISO } from "date-fns";
 import { ScheduleEvent } from "@/lib/types";
 import { getAllEvents } from "@/lib/storage";
-import { CATEGORY_COLORS } from "@/lib/constants";
+import { useTheme } from "@/lib/theme/ThemeProvider";
+import { resolveCategory, useCategoryOverrides } from "@/lib/preferences";
 import EventCard from "@/components/EventCard";
 
 interface DaySection {
@@ -21,6 +22,8 @@ interface DaySection {
 }
 
 export default function CalendarScreen() {
+  const theme = useTheme();
+  const overrides = useCategoryOverrides();
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState(
     format(new Date(), "yyyy-MM-dd")
@@ -48,7 +51,7 @@ export default function CalendarScreen() {
     if (!markedDates[e.date]) {
       markedDates[e.date] = { dots: [], marked: true };
     }
-    const color = CATEGORY_COLORS[e.category];
+    const color = resolveCategory(e.category, overrides).color;
     const dots = markedDates[e.date].dots;
     if (!dots.some((d: any) => d.color === color)) {
       dots.push({ key: e.category, color });
@@ -58,9 +61,9 @@ export default function CalendarScreen() {
   // Highlight selected date
   if (markedDates[selectedDate]) {
     markedDates[selectedDate].selected = true;
-    markedDates[selectedDate].selectedColor = "#4CAF50";
+    markedDates[selectedDate].selectedColor = theme.accent;
   } else {
-    markedDates[selectedDate] = { selected: true, selectedColor: "#4CAF50" };
+    markedDates[selectedDate] = { selected: true, selectedColor: theme.accent };
   }
 
   // Filter events for selected date
@@ -71,23 +74,25 @@ export default function CalendarScreen() {
   const dateDisplay = format(parseISO(selectedDate), "EEEE, MMMM d");
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
       <Calendar
         current={selectedDate}
         onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
         markingType="multi-dot"
         markedDates={markedDates}
         theme={{
-          selectedDayBackgroundColor: "#4CAF50",
-          todayTextColor: "#4CAF50",
-          arrowColor: "#4CAF50",
-          dotColor: "#4CAF50",
+          selectedDayBackgroundColor: theme.accent,
+          todayTextColor: theme.accent,
+          arrowColor: theme.accent,
+          dotColor: theme.accent,
         }}
       />
 
-      <View style={styles.dayHeader}>
-        <Text style={styles.dayHeaderText}>{dateDisplay}</Text>
-        <Text style={styles.eventCount}>
+      <View style={[styles.dayHeader, { borderBottomColor: theme.colors.border }]}>
+        <Text style={[styles.dayHeaderText, { color: theme.colors.textPrimary }]}>
+          {dateDisplay}
+        </Text>
+        <Text style={[styles.eventCount, { color: theme.colors.textMuted }]}>
           {dayEvents.length} event{dayEvents.length !== 1 ? "s" : ""}
         </Text>
       </View>
@@ -104,7 +109,9 @@ export default function CalendarScreen() {
         </View>
       ) : (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>No events this day</Text>
+          <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
+            No events this day
+          </Text>
         </View>
       )}
     </View>
@@ -114,7 +121,6 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   dayHeader: {
     flexDirection: "row",
@@ -123,16 +129,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
   },
   dayHeaderText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#333",
   },
   eventCount: {
     fontSize: 13,
-    color: "#888",
   },
   eventList: {
     flex: 1,
@@ -145,6 +148,5 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    color: "#aaa",
   },
 });
