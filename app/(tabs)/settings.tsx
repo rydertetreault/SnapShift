@@ -23,9 +23,11 @@ import {
 import { syncIosCalendars } from "@/lib/calendar/sync";
 import { mirrorSnapShiftEvents } from "@/lib/calendar/mirror";
 import { useTheme } from "@/lib/theme/ThemeProvider";
+import { ACCENT_PALETTE, setAppearance, useAppearance } from "@/lib/preferences";
 
 export default function SettingsScreen() {
   const theme = useTheme();
+  const appearance = useAppearance();
   const [granted, setGranted] = useState(false);
   const [calendars, setCalendars] = useState<IosCalendar[]>([]);
   const [selectedIds, setSelectedIdsState] = useState<string[]>([]);
@@ -93,6 +95,53 @@ export default function SettingsScreen() {
         style={[styles.container, { backgroundColor: theme.colors.surface }]}
         contentContainerStyle={{ padding: 20 }}
       >
+        <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>Appearance</Text>
+        <View style={styles.pillRow}>
+          {(["system", "light", "dark"] as const).map((mode) => {
+            const active = appearance.mode === mode;
+            return (
+              <TouchableOpacity
+                key={mode}
+                style={[
+                  styles.pill,
+                  {
+                    backgroundColor: active ? theme.accent : theme.colors.surfaceAlt,
+                  },
+                ]}
+                onPress={() => setAppearance({ ...appearance, mode })}
+              >
+                <Text
+                  style={[
+                    styles.pillText,
+                    { color: active ? "#fff" : theme.colors.textSecondary },
+                  ]}
+                >
+                  {mode === "system" ? "System" : mode === "light" ? "Light" : "Dark"}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>Accent color</Text>
+        <View style={styles.swatchRow}>
+          {ACCENT_PALETTE.map((accent) => {
+            const selected = appearance.accent.toLowerCase() === accent.toLowerCase();
+            return (
+              <TouchableOpacity
+                key={accent}
+                onPress={() => setAppearance({ ...appearance, accent })}
+                style={[
+                  styles.swatch,
+                  {
+                    backgroundColor: accent,
+                    borderColor: selected ? theme.colors.textPrimary : "transparent",
+                  },
+                ]}
+              />
+            );
+          })}
+        </View>
+
         <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>iPhone Calendar</Text>
         <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
           Connect iPhone Calendar to see your existing events alongside SnapShift events, and optionally save SnapShift events back to your iPhone Calendar.
@@ -112,6 +161,53 @@ export default function SettingsScreen() {
       style={[styles.container, { backgroundColor: theme.colors.surface }]}
       contentContainerStyle={{ padding: 20 }}
     >
+      <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>Appearance</Text>
+      <View style={styles.pillRow}>
+        {(["system", "light", "dark"] as const).map((mode) => {
+          const active = appearance.mode === mode;
+          return (
+            <TouchableOpacity
+              key={mode}
+              style={[
+                styles.pill,
+                {
+                  backgroundColor: active ? theme.accent : theme.colors.surfaceAlt,
+                },
+              ]}
+              onPress={() => setAppearance({ ...appearance, mode })}
+            >
+              <Text
+                style={[
+                  styles.pillText,
+                  { color: active ? "#fff" : theme.colors.textSecondary },
+                ]}
+              >
+                {mode === "system" ? "System" : mode === "light" ? "Light" : "Dark"}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+      <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>Accent color</Text>
+      <View style={styles.swatchRow}>
+        {ACCENT_PALETTE.map((accent) => {
+          const selected = appearance.accent.toLowerCase() === accent.toLowerCase();
+          return (
+            <TouchableOpacity
+              key={accent}
+              onPress={() => setAppearance({ ...appearance, accent })}
+              style={[
+                styles.swatch,
+                {
+                  backgroundColor: accent,
+                  borderColor: selected ? theme.colors.textPrimary : "transparent",
+                },
+              ]}
+            />
+          );
+        })}
+      </View>
+
       <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>iPhone Calendar</Text>
 
       <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>Show events from</Text>
@@ -187,4 +283,9 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     gap: 12,
   },
+  pillRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  pill: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center" },
+  pillText: { fontSize: 14, fontWeight: "600" },
+  swatchRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, paddingVertical: 4, marginBottom: 16 },
+  swatch: { width: 36, height: 36, borderRadius: 18, borderWidth: 3 },
 });
