@@ -3,6 +3,7 @@ import { parseScheduleImage } from "@/lib/ocr";
 import { reportFailedScreenshot } from "@/lib/ocr/vision";
 import { resolveDates } from "@/lib/ocr/weekResolve";
 import { saveMultipleEvents } from "@/lib/storage";
+import { useTheme } from "@/lib/theme/ThemeProvider";
 import { ExtractedShift, ScheduleEvent } from "@/lib/types";
 import {
   addDays,
@@ -32,6 +33,7 @@ type Step = "pick" | "loading" | "review";
 
 export default function UploadScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const [step, setStep] = useState<Step>("pick");
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [shifts, setShifts] = useState<ExtractedShift[]>([]);
@@ -225,21 +227,32 @@ export default function UploadScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
+      style={[styles.container, { backgroundColor: theme.colors.surface }]}
       contentContainerStyle={styles.content}
     >
-      <Text style={styles.heading}>Upload Schedule</Text>
+      <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>
+        Upload Schedule
+      </Text>
 
-      <Text style={styles.label}>Schedule Week (Sat - Fri)</Text>
-      <View style={styles.weekSelector}>
+      <Text style={[styles.label, { color: theme.colors.textMuted }]}>
+        Schedule Week (Sat - Fri)
+      </Text>
+      <View
+        style={[
+          styles.weekSelector,
+          { backgroundColor: theme.colors.surfaceAlt },
+        ]}
+      >
         <TouchableOpacity
           onPress={() => changeWeek(subWeeks(weekStart, 1))}
           style={styles.weekArrow}
           activeOpacity={0.6}
         >
-          <Text style={styles.weekArrowText}>{"<"}</Text>
+          <Text style={[styles.weekArrowText, { color: theme.accent }]}>
+            {"<"}
+          </Text>
         </TouchableOpacity>
-        <Text style={styles.weekLabel}>
+        <Text style={[styles.weekLabel, { color: theme.colors.textPrimary }]}>
           {format(weekStart, "MMM d")} -{" "}
           {format(addDays(weekStart, 6), "MMM d, yyyy")}
         </Text>
@@ -248,7 +261,9 @@ export default function UploadScreen() {
           style={styles.weekArrow}
           activeOpacity={0.6}
         >
-          <Text style={styles.weekArrowText}>{">"}</Text>
+          <Text style={[styles.weekArrowText, { color: theme.accent }]}>
+            {">"}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -256,19 +271,43 @@ export default function UploadScreen() {
         <>
           {/* Image preview if we have one from a previous attempt */}
           {imageUri && (
-            <Image source={{ uri: imageUri }} style={styles.preview} />
+            <Image
+              source={{ uri: imageUri }}
+              style={[
+                styles.preview,
+                { backgroundColor: theme.colors.surfaceAlt },
+              ]}
+            />
           )}
 
           {failedImage && (
-            <View style={styles.reportCard}>
-              <Text style={styles.reportHeading}>
+            <View
+              style={[
+                styles.reportCard,
+                {
+                  backgroundColor: theme.colors.surfaceAlt,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.reportHeading,
+                  { color: theme.colors.textPrimary },
+                ]}
+              >
                 Couldn't read that schedule
               </Text>
-              <Text style={styles.reportBody}>{failedImage.error}</Text>
+              <Text
+                style={[styles.reportBody, { color: theme.colors.textSecondary }]}
+              >
+                {failedImage.error}
+              </Text>
               <TouchableOpacity
                 style={[
                   styles.reportButton,
-                  reportSending && styles.reportButtonDisabled,
+                  { backgroundColor: theme.accent },
+                  reportSending && { backgroundColor: theme.colors.disabled },
                 ]}
                 onPress={handleReportFailed}
                 disabled={reportSending}
@@ -282,7 +321,7 @@ export default function UploadScreen() {
           )}
 
           <TouchableOpacity
-            style={styles.pickButton}
+            style={[styles.pickButton, { backgroundColor: theme.accent }]}
             onPress={() => pickImage(false)}
             activeOpacity={0.8}
           >
@@ -290,14 +329,23 @@ export default function UploadScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.pickButton, styles.cameraButton]}
+            style={[
+              styles.pickButton,
+              styles.cameraButton,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.accent,
+              },
+            ]}
             onPress={() => pickImage(true)}
             activeOpacity={0.8}
           >
-            <Text style={styles.cameraButtonText}>Take Photo</Text>
+            <Text style={[styles.cameraButtonText, { color: theme.accent }]}>
+              Take Photo
+            </Text>
           </TouchableOpacity>
 
-          <Text style={styles.hint}>
+          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
             Take a screenshot of your schedule and upload it here. The AI
             will read your shifts automatically.
           </Text>
@@ -307,11 +355,23 @@ export default function UploadScreen() {
       {step === "loading" && (
         <View style={styles.loadingContainer}>
           {imageUri && (
-            <Image source={{ uri: imageUri }} style={styles.previewSmall} />
+            <Image
+              source={{ uri: imageUri }}
+              style={[
+                styles.previewSmall,
+                { backgroundColor: theme.colors.surfaceAlt },
+              ]}
+            />
           )}
-          <ActivityIndicator size="large" color="#4CAF50" />
-          <Text style={styles.loadingText}>Reading your schedule...</Text>
-          <Text style={styles.loadingSubtext}>
+          <ActivityIndicator size="large" color={theme.accent} />
+          <Text
+            style={[styles.loadingText, { color: theme.colors.textPrimary }]}
+          >
+            Reading your schedule...
+          </Text>
+          <Text
+            style={[styles.loadingSubtext, { color: theme.colors.textMuted }]}
+          >
             This usually takes a few seconds
           </Text>
         </View>
@@ -319,10 +379,14 @@ export default function UploadScreen() {
 
       {step === "review" && (
         <>
-          <Text style={styles.reviewHeading}>
+          <Text
+            style={[styles.reviewHeading, { color: theme.colors.textPrimary }]}
+          >
             Found {shifts.length} shift{shifts.length !== 1 ? "s" : ""}
           </Text>
-          <Text style={styles.reviewSubtext}>
+          <Text
+            style={[styles.reviewSubtext, { color: theme.colors.textMuted }]}
+          >
             Review and edit before saving. Tap "Remove" to skip a shift.
           </Text>
 
@@ -337,7 +401,7 @@ export default function UploadScreen() {
           ))}
 
           <TouchableOpacity
-            style={styles.saveButton}
+            style={[styles.saveButton, { backgroundColor: theme.accent }]}
             onPress={handleSaveAll}
             activeOpacity={0.8}
           >
@@ -351,7 +415,11 @@ export default function UploadScreen() {
             onPress={resetState}
             activeOpacity={0.7}
           >
-            <Text style={styles.retryButtonText}>Try a Different Photo</Text>
+            <Text
+              style={[styles.retryButtonText, { color: theme.colors.textMuted }]}
+            >
+              Try a Different Photo
+            </Text>
           </TouchableOpacity>
         </>
       )}
@@ -391,7 +459,6 @@ function parseTimeString(timeStr: string, dateStr: string): Date {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   content: {
     padding: 20,
@@ -401,12 +468,10 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
     marginBottom: 20,
-    color: "#222",
   },
   label: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#888",
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 8,
@@ -415,7 +480,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#f5f5f5",
     borderRadius: 10,
     padding: 4,
     marginBottom: 24,
@@ -426,29 +490,24 @@ const styles = StyleSheet.create({
   weekArrowText: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#4CAF50",
   },
   weekLabel: {
     fontSize: 15,
     fontWeight: "600",
-    color: "#333",
   },
   preview: {
     width: "100%",
     height: 200,
     borderRadius: 10,
     marginBottom: 16,
-    backgroundColor: "#f0f0f0",
   },
   previewSmall: {
     width: "100%",
     height: 150,
     borderRadius: 10,
     marginBottom: 20,
-    backgroundColor: "#f0f0f0",
   },
   pickButton: {
-    backgroundColor: "#4CAF50",
     paddingVertical: 16,
     borderRadius: 10,
     alignItems: "center",
@@ -460,18 +519,14 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   cameraButton: {
-    backgroundColor: "#fff",
     borderWidth: 2,
-    borderColor: "#4CAF50",
   },
   cameraButtonText: {
-    color: "#4CAF50",
     fontSize: 17,
     fontWeight: "700",
   },
   hint: {
     fontSize: 14,
-    color: "#999",
     textAlign: "center",
     marginTop: 20,
     lineHeight: 20,
@@ -483,27 +538,22 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 17,
     fontWeight: "600",
-    color: "#333",
     marginTop: 16,
   },
   loadingSubtext: {
     fontSize: 14,
-    color: "#999",
     marginTop: 4,
   },
   reviewHeading: {
     fontSize: 20,
     fontWeight: "bold",
-    color: "#333",
     marginBottom: 4,
   },
   reviewSubtext: {
     fontSize: 14,
-    color: "#888",
     marginBottom: 16,
   },
   saveButton: {
-    backgroundColor: "#4CAF50",
     paddingVertical: 16,
     borderRadius: 10,
     alignItems: "center",
@@ -520,14 +570,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   retryButtonText: {
-    color: "#888",
     fontSize: 15,
     fontWeight: "500",
   },
   reportCard: {
-    backgroundColor: "#fafafa",
     borderWidth: 1,
-    borderColor: "#eee",
     borderRadius: 10,
     padding: 16,
     marginBottom: 16,
@@ -535,23 +582,17 @@ const styles = StyleSheet.create({
   reportHeading: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#333",
     marginBottom: 6,
   },
   reportBody: {
     fontSize: 14,
-    color: "#666",
     lineHeight: 20,
     marginBottom: 12,
   },
   reportButton: {
-    backgroundColor: "#4CAF50",
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: "center",
-  },
-  reportButtonDisabled: {
-    backgroundColor: "#a5d6a7",
   },
   reportButtonText: {
     color: "#fff",
