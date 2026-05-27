@@ -6,7 +6,7 @@ export type EventCategory =
   | "personal"
   | "other";
 
-export type EventSource = "ai" | "manual" | "ios";
+export type EventSource = "ai" | "manual" | "ios" | "canvas";
 
 export type RecurrenceFrequency =
   | "none"
@@ -48,6 +48,10 @@ export interface ScheduleEvent {
   // True when the event is an all-day work marker with no specific time
   // (e.g. detected from a monthly grid OCR). UI hides time, EventKit mirror sets allDay.
   allDay?: boolean;
+  // For source === "canvas": the ICS UID, used as the stable key for upserts.
+  externalId?: string;
+  // For source === "canvas": the assignment/event URL in Canvas, opens in browser.
+  externalUrl?: string;
 }
 
 export interface ExtractedShift {

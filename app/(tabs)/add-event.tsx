@@ -18,9 +18,11 @@ import { expandRecurrence } from "@/lib/recurrence";
 import CategoryPicker from "@/components/CategoryPicker";
 import PickerField from "@/components/PickerField";
 import RepeatPicker from "@/components/RepeatPicker";
+import { useTheme } from "@/lib/theme/ThemeProvider";
 
 export default function AddEventScreen() {
   const router = useRouter();
+  const theme = useTheme();
 
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(new Date());
@@ -115,20 +117,20 @@ export default function AddEventScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <ScrollView
-        style={styles.container}
+        style={[styles.container, { backgroundColor: theme.colors.surface }]}
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.heading}>New Event</Text>
+        <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>New Event</Text>
 
         {/* Title */}
-        <Text style={styles.label}>Title</Text>
+        <Text style={[styles.label, { color: theme.colors.textMuted }]}>Title</Text>
         <TextInput
-          style={styles.input}
+          style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
           value={title}
           onChangeText={setTitle}
           placeholder='e.g. "Dr. Smith Appointment"'
-          placeholderTextColor="#bbb"
+          placeholderTextColor={theme.colors.textMuted}
           returnKeyType="done"
         />
 
@@ -160,25 +162,25 @@ export default function AddEventScreen() {
         <RepeatPicker value={recurrence} onChange={setRecurrence} />
 
         {/* Category */}
-        <Text style={[styles.label, { marginTop: 20 }]}>Category</Text>
+        <Text style={[styles.label, { color: theme.colors.textMuted, marginTop: 20 }]}>Category</Text>
         <CategoryPicker selected={category} onSelect={setCategory} />
 
         {/* Notes */}
-        <Text style={[styles.label, { marginTop: 20 }]}>
+        <Text style={[styles.label, { color: theme.colors.textMuted, marginTop: 20 }]}>
           Notes (optional)
         </Text>
         <TextInput
-          style={[styles.input, styles.notesInput]}
+          style={[styles.input, styles.notesInput, { borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
           value={notes}
           onChangeText={setNotes}
           placeholder="Any extra details..."
-          placeholderTextColor="#bbb"
+          placeholderTextColor={theme.colors.textMuted}
           multiline
         />
 
         {/* Save Button */}
         <TouchableOpacity
-          style={styles.saveButton}
+          style={[styles.saveButton, { backgroundColor: theme.accent }]}
           onPress={handleSave}
           activeOpacity={0.8}
         >
@@ -195,7 +197,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    backgroundColor: "#fff",
   },
   content: {
     padding: 20,
@@ -205,37 +206,33 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: "bold",
     marginBottom: 24,
-    color: "#222",
   },
   label: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#888",
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 6,
   },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
     padding: 14,
     fontSize: 16,
     marginBottom: 16,
-    color: "#333",
   },
   notesInput: {
     height: 80,
     textAlignVertical: "top",
   },
   saveButton: {
-    backgroundColor: "#4CAF50",
     paddingVertical: 16,
     borderRadius: 10,
     alignItems: "center",
     marginTop: 28,
   },
   saveButtonText: {
+    // Text on accent-filled button — keep white literal per token mapping.
     color: "#fff",
     fontSize: 18,
     fontWeight: "700",

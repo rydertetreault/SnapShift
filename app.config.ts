@@ -4,7 +4,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: "SnapShift",
   slug: "snapshift",
-  version: "1.1.2",
+  version: "1.2.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "snapshift",
@@ -13,10 +13,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: false,
     bundleIdentifier: "dev.rydertetreault.snapshift",
-    buildNumber: "3",
+    buildNumber: "4",
     infoPlist: {
-      NSCameraUsageDescription:
-        "SnapShift uses the camera so you can take a photo of your work schedule. The image may be sent to an AI service for reading when our local parser cannot recognize the format.",
       NSPhotoLibraryUsageDescription:
         "SnapShift needs access to your photo library so you can upload schedule screenshots. Selected images may be sent to an AI service for reading when our local parser cannot recognize the format.",
       ITSAppUsesNonExemptEncryption: false,
@@ -51,6 +49,20 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       {
         calendarPermission:
           "SnapShift uses your iPhone Calendar so you can see existing events alongside SnapShift events, and optionally save SnapShift events back to a dedicated SnapShift calendar.",
+      },
+    ],
+    [
+      "expo-share-extension",
+      {
+        // Single-URL share: Safari "Calendar Feed" link, Canvas in-app link share, etc.
+        activationRules: [{ type: "url", max: 1 }],
+        height: 260,
+        excludedPackages: [
+          "expo-dev-client",
+          "expo-splash-screen",
+          "expo-updates",
+          "expo-font",
+        ],
       },
     ],
   ],

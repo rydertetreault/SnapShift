@@ -116,6 +116,52 @@ export async function updateSeries(
   mirrorSnapShiftEvents().catch(() => {});
 }
 
+// Replaces all source==="canvas" events with the incoming batch keyed by externalId (ICS UID).
+// Preserves user-added `notes` across syncs since notes-only editing is allowed for Canvas events.
+export async function upsertCanvasEvents(events: ScheduleEvent[]): Promise<void> {
+  const existing = await getAllEvents();
+  const incomingIds = new Set(
+    events.map((e) => e.externalId).filter((x): x is string => Boolean(x))
+  );
+  const kept = existing.filter((e) => {
+    if (e.source !== "canvas") return true;
+    return e.externalId !== undefined && incomingIds.has(e.externalId);
+  });
+  const existingByExternalId = new Map(
+    kept
+      .filter((e) => e.source === "canvas" && e.externalId)
+      .map((e) => [e.externalId!, e])
+  );
+  const nonCanvas = kept.filter((e) => e.source !== "canvas");
+  const merged: ScheduleEvent[] = [...nonCanvas];
+  for (const incoming of events) {
+    const prev = existingByExternalId.get(incoming.externalId!);
+    if (prev) {
+      // Keep the stable id and preserve any user-added notes from prior sync.
+      merged.push({
+        ...incoming,
+        id: prev.id,
+        notes: prev.notes ?? incoming.notes,
+      });
+    } else {
+      merged.push(incoming);
+    }
+  }
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+  triggerMirror();
+}
+
+export async function deleteAllCanvasEvents(): Promise<void> {
+  const events = await getAllEvents();
+  const canvasEvents = events.filter((e) => e.source === "canvas");
+  if (canvasEvents.length > 0) {
+    const { unmirrorEvent } = await import("./calendar/mirror");
+    for (const e of canvasEvents) await unmirrorEvent(e);
+  }
+  const filtered = events.filter((e) => e.source !== "canvas");
+  await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
+}
+
 export async function upsertIosEvents(events: ScheduleEvent[]): Promise<void> {
   const existing = await getAllEvents();
   const incomingIds = new Set(

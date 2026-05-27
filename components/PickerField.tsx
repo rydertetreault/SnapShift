@@ -10,6 +10,7 @@ import DateTimePicker, {
   DateTimePickerEvent,
 } from "@react-native-community/datetimepicker";
 import { format } from "date-fns";
+import { useTheme } from "@/lib/theme/ThemeProvider";
 
 interface PickerFieldProps {
   label: string;
@@ -24,6 +25,7 @@ export default function PickerField({
   mode,
   onChange,
 }: PickerFieldProps) {
+  const theme = useTheme();
   const [show, setShow] = useState(false);
 
   const displayText =
@@ -40,20 +42,28 @@ export default function PickerField({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: theme.colors.textMuted }]}>{label}</Text>
       <TouchableOpacity
-        style={styles.field}
+        style={[
+          styles.field,
+          {
+            borderColor: theme.colors.border,
+            backgroundColor: theme.colors.surfaceAlt,
+          },
+        ]}
         onPress={() => setShow(!show)}
         activeOpacity={0.7}
       >
-        <Text style={styles.value}>{displayText}</Text>
+        <Text style={[styles.value, { color: theme.colors.textPrimary }]}>
+          {displayText}
+        </Text>
       </TouchableOpacity>
       {show && (
         <DateTimePicker
           value={value}
           mode={mode}
           display={Platform.OS === "ios" ? "spinner" : "default"}
-          themeVariant="light"
+          themeVariant={theme.mode}
           onChange={handleChange}
           minuteInterval={5}
         />
@@ -69,20 +79,16 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 13,
     fontWeight: "600",
-    color: "#888",
     textTransform: "uppercase",
     letterSpacing: 0.5,
     marginBottom: 6,
   },
   field: {
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
     padding: 14,
-    backgroundColor: "#fafafa",
   },
   value: {
     fontSize: 16,
-    color: "#333",
   },
 });
