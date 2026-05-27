@@ -16,6 +16,7 @@ import {
   subWeeks,
   isSameDay,
 } from "date-fns";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { ScheduleEvent } from "@/lib/types";
 import { getAllEvents } from "@/lib/storage";
 import { useTheme } from "@/lib/theme/ThemeProvider";
@@ -54,7 +55,19 @@ export default function WeeklyScreen() {
 
   const today = new Date();
 
+  const pan = Gesture.Pan()
+    .activeOffsetX([-15, 15])
+    .failOffsetY([-10, 10])
+    .onEnd((e) => {
+      const fast = Math.abs(e.velocityX) > 400;
+      const far = Math.abs(e.translationX) > 60;
+      if (!fast && !far) return;
+      if (e.translationX < 0) setWeekStart(addWeeks(weekStart, 1));
+      else setWeekStart(subWeeks(weekStart, 1));
+    });
+
   return (
+    <GestureDetector gesture={pan}>
     <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
       {/* Week navigation header */}
       <View
@@ -199,6 +212,7 @@ export default function WeeklyScreen() {
         })}
       </ScrollView>
     </View>
+    </GestureDetector>
   );
 }
 
