@@ -23,8 +23,8 @@ export function useAppearance(): Appearance {
   useEffect(() => {
     let alive = true;
     const refresh = () => getAppearance().then((v) => { if (alive) setValue(v); });
-    refresh();
     const unsub = subscribeAppearance(refresh);
+    refresh();
     return () => { alive = false; unsub(); };
   }, []);
   return value;
@@ -35,8 +35,8 @@ export function useCategoryOverrides(): CategoryOverrides {
   useEffect(() => {
     let alive = true;
     const refresh = () => getCategoryOverrides().then((v) => { if (alive) setValue(v); });
-    refresh();
     const unsub = subscribeCategories(refresh);
+    refresh();
     return () => { alive = false; unsub(); };
   }, []);
   return value;
@@ -47,8 +47,8 @@ export function useDefaultShift(): DefaultShift {
   useEffect(() => {
     let alive = true;
     const refresh = () => getDefaultShift().then((v) => { if (alive) setValue(v); });
-    refresh();
     const unsub = subscribeDefaultShift(refresh);
+    refresh();
     return () => { alive = false; unsub(); };
   }, []);
   return value;
