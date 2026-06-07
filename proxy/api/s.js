@@ -30,6 +30,7 @@ module.exports = function handler(req, res) {
     var bytes=[];for(var j=0;j<input.length;j+=4){var c0=lookup[input[j]],c1=lookup[input[j+1]],c2=lookup[input[j+2]],c3=lookup[input[j+3]];
     if(c0===undefined||c1===undefined)break;bytes.push((c0<<2)|(c1>>4));if(c2!==undefined)bytes.push(((c1&15)<<4)|(c2>>2));if(c3!==undefined)bytes.push(((c2&3)<<6)|c3);}
     return decodeURIComponent(escape(String.fromCharCode.apply(null,bytes)));}
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
   function param(n){var m=location.search.match(new RegExp("[?&]"+n+"=([^&#]+)"));return m?m[1]:null;}
   try{
     var d=param("d");var p=JSON.parse(b64urlDecode(d));
@@ -37,8 +38,8 @@ module.exports = function handler(req, res) {
     document.getElementById("sub").textContent="Week of "+p.week;
     var byDay={};(p.shifts||[]).forEach(function(s){(byDay[s.date]=byDay[s.date]||[]).push({k:"work",t:s.start+"–"+s.end+(s.label?" · "+s.label:"")});});
     (p.busy||[]).forEach(function(b){(byDay[b.date]=byDay[b.date]||[]).push({k:"busy",t:b.allDay?"All day (busy)":b.start+"–"+b.end+" (busy)"});});
-    var html="";Object.keys(byDay).sort().forEach(function(day){html+='<div class="day">'+day+'</div>';
-      byDay[day].forEach(function(x){html+='<div class="blk '+x.k+'">'+x.t+'</div>';});});
+    var html="";Object.keys(byDay).sort().forEach(function(day){html+='<div class="day">'+esc(day)+'</div>';
+      byDay[day].forEach(function(x){html+='<div class="blk '+x.k+'">'+esc(x.t)+'</div>';});});
     document.getElementById("preview").innerHTML=html||'<p class="muted">No events shared.</p>';
     window.location.href="snapshift://share-week?d="+d;
     setTimeout(function(){document.getElementById("sub").textContent="Have the app? Tap to open. Otherwise install below.";},1500);
