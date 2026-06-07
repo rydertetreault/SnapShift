@@ -52,6 +52,9 @@ export interface ScheduleEvent {
   externalId?: string;
   // For source === "canvas": the assignment/event URL in Canvas, opens in browser.
   externalUrl?: string;
+  // True when this event came from an iOS holiday/birthday/subscription calendar.
+  // Such all-day events are excluded from shared "busy" blocks.
+  subscribed?: boolean;
 }
 
 export interface ExtractedShift {
