@@ -6,6 +6,7 @@ import {
   SNAPSHIFT_CALENDAR_TITLE,
 } from "./access";
 import { getSelectedCalendarIds } from "./preferences";
+import { mapIosEventToScheduleEvent } from "./mapIosEvent";
 import { upsertIosEvents } from "../storage";
 import { ScheduleEvent } from "../types";
 
@@ -39,24 +40,10 @@ export async function syncIosCalendars(today: Date = new Date()): Promise<number
     addDays(today, READ_WINDOW_DAYS)
   );
 
-  const mapped: ScheduleEvent[] = events.map((e) => {
-    const start = new Date(e.startDate as string);
-    const end = new Date(e.endDate as string);
-    const date = start.toISOString().slice(0, 10);
-    return {
-      id: `ios:${e.id}`,
-      iosCalendarEventId: e.id,
-      title: e.title || "(no title)",
-      date,
-      startTime: start.toISOString(),
-      endTime: end.toISOString(),
-      category: "other",
-      source: "ios",
-      notes: e.notes,
-      createdAt: new Date().toISOString(),
-      allDay: !!e.allDay,
-    };
-  });
+  const typeById = new Map(allCals.map((c) => [c.id, String(c.type)]));
+  const mapped: ScheduleEvent[] = events.map((e) =>
+    mapIosEventToScheduleEvent(e, (id) => typeById.get(id))
+  );
 
   await upsertIosEvents(mapped);
   return mapped.length;

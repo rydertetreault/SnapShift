@@ -55,6 +55,12 @@ import { connectCanvas, syncCanvas } from "@/lib/canvas/sync";
 import { deleteAllCanvasEvents } from "@/lib/storage";
 import { openAppStoreReviewPage } from "@/lib/review";
 import { sentryEnabled, sendSentryTestEvent } from "@/lib/sentry";
+import {
+  getSharedPeople,
+  deleteSharedPerson,
+  setSharedPersonHidden,
+} from "@/lib/sharing/store";
+import { SharedPerson } from "@/lib/sharing/types";
 
 const toDate = (hhmm: string): Date => parse(hhmm, "HH:mm", new Date());
 const toHHmm = (d: Date): string => format(d, "HH:mm");
@@ -128,6 +134,9 @@ export default function SettingsScreen() {
   const [feedInput, setFeedInput] = useState("");
   const [canvasBusy, setCanvasBusy] = useState(false);
 
+  // Schedules other people have shared with this device (read-only).
+  const [people, setPeople] = useState<SharedPerson[]>([]);
+
   useEffect(() => {
     refresh();
   }, []);
@@ -146,6 +155,34 @@ export default function SettingsScreen() {
     }
     setCanvasUrl(await getCanvasFeedUrl());
     setCanvasLastSyncedAt(await getCanvasLastSyncedAt());
+    await loadSharedPeople();
+  }
+
+  async function loadSharedPeople() {
+    setPeople(await getSharedPeople());
+  }
+
+  async function handleToggleHidden(id: string, visible: boolean) {
+    await setSharedPersonHidden(id, !visible);
+    await loadSharedPeople();
+  }
+
+  function handleRemovePerson(person: SharedPerson) {
+    Alert.alert(
+      "Remove shared schedule?",
+      `Remove ${person.name}'s shared week?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Remove",
+          style: "destructive",
+          onPress: async () => {
+            await deleteSharedPerson(person.id);
+            await loadSharedPeople();
+          },
+        },
+      ]
+    );
   }
 
   async function handleGrant() {
@@ -503,6 +540,43 @@ export default function SettingsScreen() {
     );
   }
 
+  function renderSharedWithMeSection() {
+    return (
+      <Section
+        title="Shared with me"
+        description="Schedules other people have shared with you, shown on the weekly calendar."
+      >
+        {people.length === 0 ? (
+          <View style={styles.cardBody}>
+            <Text style={[styles.bodyText, { color: theme.colors.textMuted, marginBottom: 0 }]}>
+              Schedules people share with you will appear here.
+            </Text>
+          </View>
+        ) : (
+          people.map((person) => (
+            <View key={person.id} style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>
+                  {person.name}
+                </Text>
+                <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>
+                  Week of {person.week}
+                </Text>
+              </View>
+              <Switch
+                value={!person.hidden}
+                onValueChange={(visible) => handleToggleHidden(person.id, visible)}
+              />
+              <TouchableOpacity onPress={() => handleRemovePerson(person)} hitSlop={8}>
+                <Text style={[styles.removeText, { color: "#F44336" }]}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+      </Section>
+    );
+  }
+
   function renderReviewSection() {
     return (
       <Section title="Support SnapShift">
@@ -562,6 +636,7 @@ export default function SettingsScreen() {
       {renderDefaultShiftSection()}
       {renderCanvasSection()}
       {renderCalendarSection()}
+      {renderSharedWithMeSection()}
       {renderReviewSection()}
       {renderDiagnosticsSection()}
 
@@ -683,6 +758,7 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 15, fontWeight: "500" },
   rowSub: { fontSize: 12, marginTop: 2 },
   rowValue: { fontSize: 15, fontWeight: "600" },
+  removeText: { fontSize: 14, fontWeight: "600" },
   categoryName: { flex: 1, fontSize: 15, fontWeight: "500" },
   chevron: { fontSize: 22, fontWeight: "300" },
 
