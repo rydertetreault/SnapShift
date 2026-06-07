@@ -57,4 +57,14 @@ function buildOpenRouterRequest({ imageBase64, mimeType, model }) {
   };
 }
 
-module.exports = { repairAndParseJson, buildOpenRouterRequest, RESPONSE_JSON_SCHEMA };
+function parseExtractionResponse(openRouterJson) {
+  const content =
+    openRouterJson && openRouterJson.choices && openRouterJson.choices[0] &&
+    openRouterJson.choices[0].message && openRouterJson.choices[0].message.content;
+  if (!content) throw new Error("Empty response from vision service");
+  const parsed = repairAndParseJson(content);
+  const shifts = Array.isArray(parsed.shifts) ? parsed.shifts : [];
+  return { weekStart: parsed.weekStart, shifts };
+}
+
+module.exports = { repairAndParseJson, buildOpenRouterRequest, parseExtractionResponse, RESPONSE_JSON_SCHEMA };

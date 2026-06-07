@@ -1,4 +1,5 @@
-const { repairAndParseJson, buildOpenRouterRequest } = require("../../proxy/api/_lib/extract-core.js");
+const { repairAndParseJson, buildOpenRouterRequest, parseExtractionResponse } = require("../../proxy/api/_lib/extract-core.js");
+const completion = (content) => ({ choices: [{ message: { content } }] });
 
 describe("repairAndParseJson", () => {
   test("parses plain JSON", () => {
@@ -32,5 +33,25 @@ describe("buildOpenRouterRequest", () => {
   test("requests a json_schema response format", () => {
     expect(req.response_format.type).toBe("json_schema");
     expect(req.response_format.json_schema.schema.required).toContain("shifts");
+  });
+});
+
+describe("parseExtractionResponse", () => {
+  test("extracts shifts with times", () => {
+    const out = parseExtractionResponse(completion('{"weekStart":"2026-05-03","shifts":[{"dayOfWeek":"Monday","date":"2026-05-04","startTime":"5:00 AM","endTime":"2:00 PM","department":"Deli"}]}'));
+    expect(out.weekStart).toBe("2026-05-03");
+    expect(out.shifts).toHaveLength(1);
+    expect(out.shifts[0].startTime).toBe("5:00 AM");
+  });
+  test("keeps marker-only shifts without times", () => {
+    const out = parseExtractionResponse(completion('{"shifts":[{"dayOfWeek":"Saturday","date":"2026-05-09"}]}'));
+    expect(out.shifts[0].startTime).toBeUndefined();
+  });
+  test("returns empty shifts array when none found", () => {
+    const out = parseExtractionResponse(completion('{"shifts":[]}'));
+    expect(out.shifts).toEqual([]);
+  });
+  test("throws when the completion has no content", () => {
+    expect(() => parseExtractionResponse({ choices: [] })).toThrow();
   });
 });
