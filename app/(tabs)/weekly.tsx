@@ -27,8 +27,15 @@ import Animated, {
 import { ScheduleEvent } from "@/lib/types";
 import { getAllEvents } from "@/lib/storage";
 import { useTheme } from "@/lib/theme/ThemeProvider";
-import { resolveCategory, useCategoryOverrides } from "@/lib/preferences";
+import {
+  resolveCategory,
+  useCategoryOverrides,
+  ACCENT_PALETTE,
+} from "@/lib/preferences";
 import { shareWeek } from "@/lib/sharing/share";
+import { getSharedPeople } from "@/lib/sharing/store";
+import { overlayBlocksForDay } from "@/lib/sharing/overlay";
+import { SharedPerson } from "@/lib/sharing/types";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -36,10 +43,17 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 const SWIPE_VELOCITY = 500;
 const SLIDE_DURATION = 200;
 
+function personColor(id: string): string {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return ACCENT_PALETTE[h % ACCENT_PALETTE.length];
+}
+
 export default function WeeklyScreen() {
   const theme = useTheme();
   const overrides = useCategoryOverrides();
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
+  const [people, setPeople] = useState<SharedPerson[]>([]);
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
@@ -54,10 +68,12 @@ export default function WeeklyScreen() {
   async function loadEvents() {
     const loaded = await getAllEvents();
     setEvents(loaded);
+    setPeople(await getSharedPeople());
   }
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const weekEnd = days[6];
+  const visiblePeople = people.filter((p) => !p.hidden);
 
   function getEventsForDay(day: Date): ScheduleEvent[] {
     const dayStr = format(day, "yyyy-MM-dd");
@@ -162,6 +178,36 @@ export default function WeeklyScreen() {
         </View>
       </View>
 
+      {/* Shared-people legend */}
+      {visiblePeople.length > 0 && (
+        <View
+          style={[
+            styles.legend,
+            {
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.border,
+            },
+          ]}
+        >
+          {visiblePeople.map((p) => (
+            <View key={p.id} style={styles.legendItem}>
+              <View
+                style={[
+                  styles.legendSwatch,
+                  { backgroundColor: personColor(p.id) },
+                ]}
+              />
+              <Text
+                style={[styles.legendName, { color: theme.colors.textSecondary }]}
+                numberOfLines={1}
+              >
+                {p.name}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Day rows */}
       <Animated.View style={[{ flex: 1 }, animatedStyle]}>
       <ScrollView
@@ -170,6 +216,8 @@ export default function WeeklyScreen() {
       >
         {days.map((day) => {
           const dayEvents = getEventsForDay(day);
+          const dayStr = format(day, "yyyy-MM-dd");
+          const overlay = overlayBlocksForDay(people, dayStr);
           const isToday = isSameDay(day, today);
 
           return (
@@ -264,6 +312,37 @@ export default function WeeklyScreen() {
                     OFF
                   </Text>
                 )}
+
+                {/* Overlaid shared schedules */}
+                {overlay.map((blk, i) => {
+                  const c = personColor(blk.personId);
+                  const isWork = blk.kind === "work";
+                  return (
+                    <View
+                      key={`${blk.personId}-${blk.kind}-${i}`}
+                      style={[
+                        styles.overlayBlock,
+                        isWork
+                          ? { backgroundColor: c }
+                          : { backgroundColor: c + "33" },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.overlayText,
+                          {
+                            color: isWork ? "#fff" : theme.colors.textPrimary,
+                          },
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {blk.name}
+                        {isWork && blk.label ? ` · ${blk.label}` : ""}
+                        {` ${blk.start}–${blk.end}`}
+                      </Text>
+                    </View>
+                  );
+                })}
               </View>
             </View>
           );
@@ -371,5 +450,39 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     letterSpacing: 1,
+  },
+  overlayBlock: {
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    marginBottom: 4,
+  },
+  overlayText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  legend: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginRight: 14,
+    marginVertical: 2,
+  },
+  legendSwatch: {
+    width: 12,
+    height: 12,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  legendName: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 });
