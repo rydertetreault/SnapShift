@@ -2,7 +2,7 @@
 import { ScheduleEvent } from "../types";
 
 // Calendar types whose all-day entries are informational, not real commitments.
-const SUBSCRIBED_TYPES = new Set(["subscribed", "birthday"]);
+const SUBSCRIBED_TYPES = new Set(["subscribed", "birthdays"]);
 
 // `calendarType(id)` returns the lowercased expo-calendar CalendarType for a
 // calendar id (e.g. "subscribed", "birthday", "local", "caldav").

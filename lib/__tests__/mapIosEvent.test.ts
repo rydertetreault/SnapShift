@@ -1,7 +1,7 @@
 import { mapIosEventToScheduleEvent } from "../calendar/mapIosEvent";
 
 const calType = (id: string) =>
-  ({ holidays: "subscribed", birthdays: "birthday", personal: "local" } as Record<string, string>)[id];
+  ({ holidays: "subscribed", birthdays: "birthdays", personal: "local" } as Record<string, string>)[id];
 
 const raw = (over: any = {}) => ({
   id: "e1",
