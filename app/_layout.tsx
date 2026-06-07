@@ -11,6 +11,7 @@ import { mirrorSnapShiftEvents } from "@/lib/calendar/mirror";
 import { connectCanvas, syncCanvas } from "@/lib/canvas/sync";
 import { looksLikeCanvasFeedUrl } from "@/lib/canvas/preferences";
 import { ThemeProvider, useTheme } from "@/lib/theme/ThemeProvider";
+import AnnouncementModal from "@/components/AnnouncementModal";
 
 export { ErrorBoundary } from "expo-router";
 
@@ -105,6 +106,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <ThemedStack />
+        <AnnouncementModal />
       </ThemeProvider>
     </GestureHandlerRootView>
   );

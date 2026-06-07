@@ -28,3 +28,6 @@ export const ALL_CATEGORIES: EventCategory[] = [
 ];
 
 export const STORAGE_KEY = "screen_schedule_events";
+
+// App Store numeric ID (from eas.json `ascAppId`). Used for the "write a review" deep link.
+export const APP_STORE_ID = "6769178607";
