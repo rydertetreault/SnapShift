@@ -28,6 +28,7 @@ import { ScheduleEvent } from "@/lib/types";
 import { getAllEvents } from "@/lib/storage";
 import { useTheme } from "@/lib/theme/ThemeProvider";
 import { resolveCategory, useCategoryOverrides } from "@/lib/preferences";
+import { shareWeek } from "@/lib/sharing/share";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -140,12 +141,25 @@ export default function WeeklyScreen() {
             <Text style={[styles.todayLink, { color: theme.accent }]}>Today</Text>
           </TouchableOpacity>
         </View>
-        <TouchableOpacity
-          onPress={() => setWeekStart(addWeeks(weekStart, 1))}
-          style={styles.navButton}
-        >
-          <FontAwesome name="chevron-right" size={16} color={theme.accent} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={() => setWeekStart(addWeeks(weekStart, 1))}
+            style={styles.navButton}
+          >
+            <FontAwesome name="chevron-right" size={16} color={theme.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => shareWeek(weekStart)}
+            style={styles.navButton}
+            accessibilityLabel="Share this week"
+          >
+            <FontAwesome
+              name="share-square-o"
+              size={20}
+              color={theme.colors.textPrimary}
+            />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Day rows */}
@@ -275,6 +289,10 @@ const styles = StyleSheet.create({
   },
   navButton: {
     padding: 8,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   weekTitle: {
     alignItems: "center",
