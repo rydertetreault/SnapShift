@@ -12,8 +12,13 @@ import { connectCanvas, syncCanvas } from "@/lib/canvas/sync";
 import { looksLikeCanvasFeedUrl } from "@/lib/canvas/preferences";
 import { ThemeProvider, useTheme } from "@/lib/theme/ThemeProvider";
 import AnnouncementModal from "@/components/AnnouncementModal";
+import { Sentry, initSentry } from "@/lib/sentry";
 
 export { ErrorBoundary } from "expo-router";
+
+// Initialize as early as possible so startup crashes are captured. No-op until
+// EXPO_PUBLIC_SENTRY_DSN is set (see lib/sentry.ts).
+initSentry();
 
 SplashScreen.preventAutoHideAsync();
 
@@ -37,7 +42,7 @@ function ThemedStack() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [loaded, error] = useFonts({
     ...FontAwesome.font,
   });
@@ -111,3 +116,7 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
+// Sentry.wrap enables native crash context + touch/navigation breadcrumbs.
+// It's a transparent pass-through when no DSN is configured.
+export default Sentry.wrap(RootLayout);

@@ -54,6 +54,7 @@ import {
 import { connectCanvas, syncCanvas } from "@/lib/canvas/sync";
 import { deleteAllCanvasEvents } from "@/lib/storage";
 import { openAppStoreReviewPage } from "@/lib/review";
+import { sentryEnabled, sendSentryTestEvent } from "@/lib/sentry";
 
 const toDate = (hhmm: string): Date => parse(hhmm, "HH:mm", new Date());
 const toHHmm = (d: Date): string => format(d, "HH:mm");
@@ -521,6 +522,36 @@ export default function SettingsScreen() {
     );
   }
 
+  function renderDiagnosticsSection() {
+    // Only shown once a Sentry DSN is configured. Safe to leave in production —
+    // it just fires a known test error. Remove the section if you'd rather not
+    // expose it to users.
+    if (!sentryEnabled) return null;
+    return (
+      <Section
+        title="Diagnostics"
+        description="Confirm crash reporting is working. Test events only send from TestFlight / App Store builds, not local development."
+      >
+        <View style={styles.cardBody}>
+          <TouchableOpacity
+            style={[styles.secondaryBtn, { borderColor: theme.colors.border, marginTop: 0 }]}
+            onPress={() => {
+              sendSentryTestEvent();
+              Alert.alert(
+                "Test event sent",
+                "On a TestFlight or App Store build it should appear in Sentry within a minute."
+              );
+            }}
+          >
+            <Text style={[styles.secondaryBtnText, { color: theme.colors.textPrimary }]}>
+              Send test report
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </Section>
+    );
+  }
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: theme.colors.surfaceAlt }]}
@@ -532,6 +563,7 @@ export default function SettingsScreen() {
       {renderCanvasSection()}
       {renderCalendarSection()}
       {renderReviewSection()}
+      {renderDiagnosticsSection()}
 
       <CategoryEditModal
         visible={editingKey !== null}

@@ -1,5 +1,21 @@
 import { ConfigContext, ExpoConfig } from "expo/config";
 
+// The Sentry config plugin (native init + source-map upload on EAS) is only
+// added when a DSN is present. Until then the build is byte-for-byte unchanged.
+// Set EXPO_PUBLIC_SENTRY_DSN (+ SENTRY_ORG / SENTRY_PROJECT for source maps,
+// and SENTRY_AUTH_TOKEN as an EAS secret) to activate it.
+const sentryPlugin: ExpoConfig["plugins"] = process.env.EXPO_PUBLIC_SENTRY_DSN
+  ? [
+      [
+        "@sentry/react-native/expo",
+        {
+          organization: process.env.SENTRY_ORG,
+          project: process.env.SENTRY_PROJECT,
+        },
+      ],
+    ]
+  : [];
+
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: "SnapShift",
@@ -65,6 +81,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         ],
       },
     ],
+    ...sentryPlugin,
   ],
   experiments: {
     typedRoutes: true,
