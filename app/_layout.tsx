@@ -10,6 +10,9 @@ import { syncIosCalendars } from "@/lib/calendar/sync";
 import { mirrorSnapShiftEvents } from "@/lib/calendar/mirror";
 import { connectCanvas, syncCanvas } from "@/lib/canvas/sync";
 import { looksLikeCanvasFeedUrl } from "@/lib/canvas/preferences";
+import { extractPayloadParam } from "@/lib/sharing/link";
+import { decodeWeek } from "@/lib/sharing/codec";
+import { importSharedWeek } from "@/lib/sharing/store";
 import { ThemeProvider, useTheme } from "@/lib/theme/ThemeProvider";
 
 export { ErrorBoundary } from "expo-router";
@@ -69,6 +72,35 @@ export default function RootLayout() {
         return;
       }
       // expo-linking normalizes the host into path on iOS; check both.
+      const isShareWeek =
+        parsed.host === "share-week" ||
+        parsed.pathname.replace(/^\//, "") === "share-week";
+      if (isShareWeek) {
+        const d = extractPayloadParam(raw);
+        if (!d) return;
+        let payload;
+        try {
+          payload = decodeWeek(d);
+        } catch (e: any) {
+          Alert.alert("Couldn't import schedule", e?.message ?? "This link is invalid.");
+          return;
+        }
+        Alert.alert(
+          "Import shared week?",
+          `${payload.name}'s schedule for the week of ${payload.week}.`,
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Import",
+              onPress: async () => {
+                await importSharedWeek(payload);
+                Alert.alert("Imported", `${payload.name}'s week is now on your calendar.`);
+              },
+            },
+          ]
+        );
+        return;
+      }
       const isCanvasConnect =
         parsed.host === "canvas-connect" ||
         parsed.pathname.replace(/^\//, "") === "canvas-connect";
