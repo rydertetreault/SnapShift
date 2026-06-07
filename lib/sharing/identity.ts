@@ -6,7 +6,7 @@ const ID_KEY = "@snapshift/share-id";
 const NAME_KEY = "@snapshift/share-name";
 
 function randomId(): string {
-  // Short, URL-safe, collision-resistant enough for family-scale sharing.
+  // Short, URL-safe, collision-resistant enough for small-group sharing.
   return Array.from({ length: 8 }, () =>
     "abcdefghijklmnopqrstuvwxyz0123456789"[Math.floor(Math.random() * 36)]
   ).join("");

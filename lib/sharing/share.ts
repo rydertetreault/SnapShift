@@ -11,7 +11,7 @@ function promptForName(): Promise<string | null> {
   return new Promise((resolve) => {
     Alert.prompt(
       "Your name",
-      "How should this show up for your family?",
+      "How should this show up for people you share with?",
       [
         { text: "Cancel", style: "cancel", onPress: () => resolve(null) },
         { text: "Save", onPress: (v?: string) => resolve((v ?? "").trim() || null) },
