@@ -1,7 +1,8 @@
+import QuotaReachedModal from "@/components/QuotaReachedModal";
 import ShiftReviewCard from "@/components/ShiftReviewCard";
 import { parseScheduleImage } from "@/lib/ocr";
 import { prepareImageForUpload } from "@/lib/ocr/prepareImage";
-import { reportFailedScreenshot } from "@/lib/ocr/vision";
+import { QuotaExceededError, reportFailedScreenshot } from "@/lib/ocr/vision";
 import { resolveDates } from "@/lib/ocr/weekResolve";
 import { useDefaultShift, DefaultShift } from "@/lib/preferences";
 import { saveMultipleEvents } from "@/lib/storage";
@@ -52,6 +53,7 @@ export default function UploadScreen() {
     preview?: string;
   } | null>(null);
   const [reportSending, setReportSending] = useState(false);
+  const [quota, setQuota] = useState<{ resetAt?: number } | null>(null);
 
   const persistedDefault = useDefaultShift();
   const [perUploadOverride, setPerUploadOverride] = useState<DefaultShift | null>(null);
@@ -129,6 +131,13 @@ export default function UploadScreen() {
       }
       setStep("review");
     } catch (error: any) {
+      // Free-tier scan limit reached: show the upgrade prompt rather than a
+      // "couldn't read that" failure card (the scan was fine, the quota wasn't).
+      if (error instanceof QuotaExceededError) {
+        setQuota({ resetAt: error.resetAt });
+        setStep("pick");
+        return;
+      }
       setFailedImage({
         base64,
         mimeType,
@@ -459,6 +468,12 @@ export default function UploadScreen() {
           </TouchableOpacity>
         </>
       )}
+
+      <QuotaReachedModal
+        visible={quota !== null}
+        resetAt={quota?.resetAt}
+        onClose={() => setQuota(null)}
+      />
 
       <Modal visible={editDefaultVisible} animationType="slide" transparent>
         <View style={styles.modalBackdrop}>

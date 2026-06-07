@@ -1,5 +1,6 @@
 // proxy/api/ocr/extract.js
-const { checkAuth, checkRateLimit } = require("../_lib/auth.js");
+const { checkAuth } = require("../_lib/auth.js");
+const { enforceRateLimit } = require("../_lib/rate-limit.js");
 const {
   buildOpenRouterRequest,
   parseExtractionResponse,
@@ -13,7 +14,10 @@ module.exports = async function handler(req, res) {
   if (req.method !== "POST")
     return res.status(405).json({ error: "Method not allowed" });
   if (!checkAuth(req, res)) return;
-  if (!checkRateLimit(req, res)) return;
+  // Metered endpoint: enforce the per-device free quota in addition to the
+  // per-IP burst guard. A 429 with code DEVICE_QUOTA drives the in-app
+  // "premium coming soon" prompt.
+  if (!(await enforceRateLimit(req, res, { deviceQuota: true }))) return;
 
   const { imageBase64, mimeType } = req.body || {};
   if (!imageBase64 || !mimeType) {

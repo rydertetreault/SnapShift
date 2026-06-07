@@ -1,11 +1,13 @@
 const { Resend } = require("resend");
-const { checkAuth, checkRateLimit } = require("../_lib/auth.js");
+const { checkAuth } = require("../_lib/auth.js");
+const { enforceRateLimit } = require("../_lib/rate-limit.js");
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST")
     return res.status(405).json({ error: "Method not allowed" });
   if (!checkAuth(req, res)) return;
-  if (!checkRateLimit(req, res)) return;
+  // Failure reports don't consume the scan quota — just the burst guard.
+  if (!(await enforceRateLimit(req, res))) return;
 
   const { imageBase64, mimeType, errorMessage, ocrPreview } = req.body || {};
   if (!imageBase64 || !mimeType) {
