@@ -1,5 +1,6 @@
 import ShiftReviewCard from "@/components/ShiftReviewCard";
 import { parseScheduleImage } from "@/lib/ocr";
+import { prepareImageForUpload } from "@/lib/ocr/prepareImage";
 import { reportFailedScreenshot } from "@/lib/ocr/vision";
 import { resolveDates } from "@/lib/ocr/weekResolve";
 import { useDefaultShift, DefaultShift } from "@/lib/preferences";
@@ -17,7 +18,6 @@ import {
   startOfWeek,
   subWeeks,
 } from "date-fns";
-import { File } from "expo-file-system";
 import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -86,28 +86,24 @@ export default function UploadScreen() {
 
     const asset = result.assets[0];
     setImageUri(asset.uri);
-    await processImage(asset.uri, asset.mimeType);
+    await processImage(asset.uri, asset.width, asset.height);
   }
 
-  async function processImage(uri: string, pickerMimeType?: string | null) {
+  async function processImage(uri: string, width?: number, height?: number) {
     setStep("loading");
     setFailedImage(null);
 
     // Hoist base64/mimeType so the catch block can attach them to the failure state.
     let base64 = "";
-    let mimeType = pickerMimeType || "image/jpeg";
+    let mimeType = "image/jpeg";
 
     try {
-      const file = new File(uri);
-      base64 = await file.base64();
-
-      // Use mime type from picker, fall back to detection from URI.
-      if (!pickerMimeType) {
-        const lower = uri.toLowerCase();
-        if (lower.endsWith(".png")) mimeType = "image/png";
-        else if (lower.endsWith(".webp")) mimeType = "image/webp";
-        else if (lower.endsWith(".gif")) mimeType = "image/gif";
-      }
+      // Downscale + JPEG-compress before upload: a full-res phone photo exceeds the
+      // proxy's ~4 MB body limit (HTTP 413), and Claude downsamples past ~1568 px
+      // anyway, so a smaller image loses no detail. See lib/ocr/prepareImage.ts.
+      const prepared = await prepareImageForUpload(uri, width, height);
+      base64 = prepared.base64;
+      mimeType = prepared.mimeType;
 
       const result = await parseScheduleImage(base64, mimeType);
 
