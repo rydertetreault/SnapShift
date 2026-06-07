@@ -1,8 +1,8 @@
 const PROXY_URL = process.env.EXPO_PUBLIC_PROXY_BASE_URL;
 const PROXY_SECRET = process.env.EXPO_PUBLIC_PROXY_SECRET;
 
-// Gemini may omit startTime/endTime/date for monthly-grid marker schedules.
-// The orchestrator fills sentinels and sets allDay.
+// The vision engine may omit startTime/endTime/date for monthly-grid marker
+// schedules. The orchestrator fills sentinels and sets allDay.
 export interface VisionShift {
   dayOfWeek: string;
   date?: string;
@@ -23,7 +23,7 @@ export async function runVisionOcr(
   if (!PROXY_URL || !PROXY_SECRET) {
     throw new Error("Vision OCR is not configured for this build.");
   }
-  const resp = await fetch(`${PROXY_URL}/api/ocr/gemini`, {
+  const resp = await fetch(`${PROXY_URL}/api/ocr/extract`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
