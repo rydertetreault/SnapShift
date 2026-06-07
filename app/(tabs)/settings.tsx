@@ -53,6 +53,12 @@ import {
 } from "@/lib/canvas/preferences";
 import { connectCanvas, syncCanvas } from "@/lib/canvas/sync";
 import { deleteAllCanvasEvents } from "@/lib/storage";
+import {
+  getSharedPeople,
+  deleteSharedPerson,
+  setSharedPersonHidden,
+} from "@/lib/sharing/store";
+import { SharedPerson } from "@/lib/sharing/types";
 
 const toDate = (hhmm: string): Date => parse(hhmm, "HH:mm", new Date());
 const toHHmm = (d: Date): string => format(d, "HH:mm");
@@ -77,6 +83,9 @@ export default function SettingsScreen() {
   const [feedInput, setFeedInput] = useState("");
   const [canvasBusy, setCanvasBusy] = useState(false);
 
+  // Schedule sharing state
+  const [people, setPeople] = useState<SharedPerson[]>([]);
+
   useEffect(() => {
     refresh();
   }, []);
@@ -95,6 +104,62 @@ export default function SettingsScreen() {
     }
     setCanvasUrl(await getCanvasFeedUrl());
     setCanvasLastSyncedAt(await getCanvasLastSyncedAt());
+    await loadPeople();
+  }
+
+  async function loadPeople() {
+    setPeople(await getSharedPeople());
+  }
+
+  async function handleToggleHidden(id: string, value: boolean) {
+    await setSharedPersonHidden(id, !value);
+    await loadPeople();
+  }
+
+  function handleRemovePerson(person: SharedPerson) {
+    Alert.alert(`Remove ${person.name}?`, "Their shared schedule will be removed from this device.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Remove",
+        style: "destructive",
+        onPress: async () => {
+          await deleteSharedPerson(person.id);
+          await loadPeople();
+        },
+      },
+    ]);
+  }
+
+  function renderSharedSection() {
+    return (
+      <>
+        <Text style={[styles.heading, styles.canvasHeading, { color: theme.colors.textPrimary }]}>
+          Shared with me
+        </Text>
+        {people.length === 0 ? (
+          <Text style={[styles.hint, { color: theme.colors.textMuted }]}>
+            Schedules people share with you will appear here.
+          </Text>
+        ) : (
+          people.map((person) => (
+            <View key={person.id} style={[styles.row, { borderBottomColor: theme.colors.border }]}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>{person.name}</Text>
+                <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>Week of {person.week}</Text>
+              </View>
+              <Switch
+                value={!person.hidden}
+                onValueChange={(value) => handleToggleHidden(person.id, value)}
+              />
+              <TouchableOpacity onPress={() => handleRemovePerson(person)} hitSlop={8}>
+                {/* TODO(v1.3): theme.colors.destructive */}
+                <Text style={[styles.removeText, { color: "#F44336" }]}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+      </>
+    );
   }
 
   async function handleGrant() {
@@ -384,6 +449,8 @@ export default function SettingsScreen() {
 
         {renderCanvasSection()}
 
+        {renderSharedSection()}
+
         <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>iPhone Calendar</Text>
         <Text style={[styles.body, { color: theme.colors.textSecondary }]}>
           Connect iPhone Calendar to see your existing events alongside SnapShift events, and optionally save SnapShift events back to your iPhone Calendar.
@@ -562,6 +629,8 @@ export default function SettingsScreen() {
 
       {renderCanvasSection()}
 
+      {renderSharedSection()}
+
       <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>iPhone Calendar</Text>
 
       <Text style={[styles.sectionLabel, { color: theme.colors.textMuted }]}>Show events from</Text>
@@ -700,6 +769,7 @@ const styles = StyleSheet.create({
   rowTitle: { fontSize: 15, fontWeight: "500" },
   rowSub: { fontSize: 12, marginTop: 2 },
   rowValue: { fontSize: 15, fontWeight: "600" },
+  removeText: { fontSize: 14, fontWeight: "600" },
   mirrorRow: {
     flexDirection: "row",
     alignItems: "center",
