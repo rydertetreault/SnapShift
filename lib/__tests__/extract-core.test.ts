@@ -1,5 +1,5 @@
 const { repairAndParseJson, buildOpenRouterRequest, parseExtractionResponse } = require("../../proxy/api/_lib/extract-core.js");
-const completion = (content) => ({ choices: [{ message: { content } }] });
+const completion = (content: any) => ({ choices: [{ message: { content } }] });
 
 describe("repairAndParseJson", () => {
   test("parses plain JSON", () => {
@@ -23,11 +23,11 @@ describe("buildOpenRouterRequest", () => {
   test("sets the model", () => { expect(req.model).toBe("anthropic/claude-sonnet-4.6"); });
   test("includes the prompt as a text part", () => {
     const parts = req.messages[0].content;
-    expect(parts.some((p) => p.type === "text" && p.text.length > 0)).toBe(true);
+    expect(parts.some((p: any) => p.type === "text" && p.text.length > 0)).toBe(true);
   });
   test("includes the image as a data URL", () => {
     const parts = req.messages[0].content;
-    const img = parts.find((p) => p.type === "image_url");
+    const img = parts.find((p: any) => p.type === "image_url");
     expect(img.image_url.url).toBe("data:image/png;base64,AAAA");
   });
   test("requests a json_schema response format", () => {
