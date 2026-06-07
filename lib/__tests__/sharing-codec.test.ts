@@ -38,4 +38,11 @@ describe("encodeWeek/decodeWeek", () => {
   test("throws on garbage input", () => {
     expect(() => decodeWeek("!!!not-valid!!!")).toThrow();
   });
+  test("normalizes missing shifts/busy to empty arrays", () => {
+    // a payload that decodes but omits the arrays (e.g. a hand-crafted link)
+    const partial = base64urlEncode(JSON.stringify({ v: SHARE_SCHEMA_VERSION, id: "x", name: "Y", week: "2026-06-08" }));
+    const out = decodeWeek(partial);
+    expect(out.shifts).toEqual([]);
+    expect(out.busy).toEqual([]);
+  });
 });

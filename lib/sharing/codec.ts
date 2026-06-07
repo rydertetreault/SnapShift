@@ -61,5 +61,9 @@ export function decodeWeek(encoded: string): SharedWeekPayload {
       `Unsupported share version ${parsed.v}; update SnapShift to view this.`
     );
   }
-  return parsed;
+  return {
+    ...parsed,
+    shifts: Array.isArray(parsed.shifts) ? parsed.shifts : [],
+    busy: Array.isArray(parsed.busy) ? parsed.busy : [],
+  };
 }
