@@ -16,6 +16,7 @@ export function mapIosEventToScheduleEvent(
   return {
     id: `ios:${e.id}`,
     iosCalendarEventId: e.id,
+    iosCalendarId: e.calendarId,
     title: e.title || "(no title)",
     date: start.toISOString().slice(0, 10),
     startTime: start.toISOString(),

@@ -32,6 +32,11 @@ import {
   useCategoryOverrides,
   ACCENT_PALETTE,
 } from "@/lib/preferences";
+import {
+  resolveEventColor,
+  useColorRules,
+  useCalendarDefaults,
+} from "@/lib/colors";
 import { shareWeek } from "@/lib/sharing/share";
 import {
   getSharedPeople,
@@ -41,6 +46,7 @@ import {
 import { overlayBlocksForDay } from "@/lib/sharing/overlay";
 import { SharedPerson } from "@/lib/sharing/types";
 import { getOverlayEnabled, setOverlayEnabled } from "@/lib/sharing/visibility";
+import { maybeResyncCalendars } from "@/lib/calendar/throttledSync";
 import SharedPeopleFilter from "@/components/SharedPeopleFilter";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
@@ -58,6 +64,8 @@ function personColor(id: string): string {
 export default function WeeklyScreen() {
   const theme = useTheme();
   const overrides = useCategoryOverrides();
+  const rules = useColorRules();
+  const calendarDefaults = useCalendarDefaults();
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [people, setPeople] = useState<SharedPerson[]>([]);
   const [overlayEnabled, setOverlayEnabledState] = useState(true);
@@ -300,10 +308,11 @@ export default function WeeklyScreen() {
               <View style={styles.dayContent}>
                 {dayEvents.length > 0 ? (
                   dayEvents.map((event) => {
-                    const { color, name } = resolveCategory(
-                      event.category,
-                      overrides
-                    );
+                    const { color, name } = resolveEventColor(event, {
+                      rules,
+                      calendarDefaults,
+                      categoryOverrides: overrides,
+                    });
                     const start = format(parseISO(event.startTime), "h:mm a");
                     const end = format(parseISO(event.endTime), "h:mm a");
 

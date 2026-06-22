@@ -61,6 +61,14 @@ import {
   setSharedPersonHidden,
 } from "@/lib/sharing/store";
 import { SharedPerson } from "@/lib/sharing/types";
+import {
+  getCalendarDefaults,
+  setCalendarDefault,
+  CalendarColorMap,
+  getColorRules,
+  removeColorRule,
+  ColorRule,
+} from "@/lib/colors";
 
 const toDate = (hhmm: string): Date => parse(hhmm, "HH:mm", new Date());
 const toHHmm = (d: Date): string => format(d, "HH:mm");
@@ -125,6 +133,10 @@ export default function SettingsScreen() {
   const [granted, setGranted] = useState(false);
   const [calendars, setCalendars] = useState<IosCalendar[]>([]);
   const [selectedIds, setSelectedIdsState] = useState<string[]>([]);
+  // v1.2.1 color customization state.
+  const [calendarColorMap, setCalendarColorMap] = useState<CalendarColorMap>({});
+  const [calColorEditingId, setCalColorEditingId] = useState<string | null>(null);
+  const [colorRules, setColorRulesState] = useState<ColorRule[]>([]);
   const [mirrorOn, setMirrorOn] = useState(false);
   const [editingKey, setEditingKey] = useState<EventCategory | null>(null);
 
@@ -155,6 +167,8 @@ export default function SettingsScreen() {
     }
     setCanvasUrl(await getCanvasFeedUrl());
     setCanvasLastSyncedAt(await getCanvasLastSyncedAt());
+    setCalendarColorMap(await getCalendarDefaults());
+    setColorRulesState(await getColorRules());
     await loadSharedPeople();
   }
 
@@ -500,43 +514,143 @@ export default function SettingsScreen() {
       );
     }
     return (
-      <Section
-        title="iPhone Calendar"
-        description="Choose which calendars appear alongside SnapShift events."
-      >
-        {calendars.map((c) => {
-          const active = selectedIds.includes(c.id);
-          return (
-            <TouchableOpacity
-              key={c.id}
-              style={styles.row}
-              onPress={() => toggleCalendar(c.id)}
-            >
-              <View style={[styles.dot, { backgroundColor: c.color || theme.colors.textMuted }]} />
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>{c.title}</Text>
-                <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>{c.source}</Text>
-              </View>
-              <Checkbox
-                checked={active}
-                onChange={() => toggleCalendar(c.id)}
-                accessibilityLabel={`Show events from ${c.title}`}
-              />
-            </TouchableOpacity>
-          );
-        })}
-        <View style={styles.row}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>
-              Save SnapShift events to iPhone Calendar
-            </Text>
-            <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>
-              Creates a "SnapShift" calendar in the iPhone Calendar app and writes events there.
-            </Text>
+      <>
+        <Section
+          title="iPhone Calendar"
+          description="Choose which calendars appear alongside SnapShift events. Tap the color dot on the right to give a calendar a custom color in SnapShift."
+        >
+          {calendars.length === 0 ? (
+            <View style={styles.cardBody}>
+              <Text style={[styles.bodyText, { color: theme.colors.textMuted, marginBottom: 0 }]}>
+                No calendars found on this device.
+              </Text>
+            </View>
+          ) : (
+            calendars.map((c) => {
+              const active = selectedIds.includes(c.id);
+              const userColor = calendarColorMap[c.id];
+              const editing = calColorEditingId === c.id;
+              return (
+                <View key={c.id}>
+                  <View style={styles.row}>
+                    <TouchableOpacity
+                      style={styles.calRowLeft}
+                      onPress={() => toggleCalendar(c.id)}
+                      activeOpacity={0.6}
+                    >
+                      <View
+                        style={[
+                          styles.dot,
+                          { backgroundColor: c.color || theme.colors.textMuted },
+                        ]}
+                      />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>
+                          {c.title}
+                        </Text>
+                        <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>
+                          {c.source}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                    {active && (
+                      <TouchableOpacity
+                        onPress={() => setCalColorEditingId(editing ? null : c.id)}
+                        hitSlop={8}
+                        accessibilityLabel={`Set SnapShift color for ${c.title}`}
+                        style={[
+                          styles.userSwatch,
+                          {
+                            backgroundColor: userColor ?? "transparent",
+                            borderColor: editing
+                              ? theme.colors.textPrimary
+                              : userColor
+                              ? "transparent"
+                              : theme.colors.border,
+                            borderStyle: userColor ? "solid" : "dashed",
+                          },
+                        ]}
+                      />
+                    )}
+                    <Checkbox
+                      checked={active}
+                      onChange={() => toggleCalendar(c.id)}
+                      accessibilityLabel={`Show events from ${c.title}`}
+                    />
+                  </View>
+                  {editing && (
+                    <View style={[styles.row, { paddingVertical: 8 }]}>
+                      <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.palette}
+                      >
+                        {ACCENT_PALETTE.map((col) => (
+                          <TouchableOpacity
+                            key={col}
+                            onPress={async () => {
+                              await setCalendarDefault(c.id, col);
+                              setCalColorEditingId(null);
+                              setCalendarColorMap(await getCalendarDefaults());
+                            }}
+                            style={[
+                              styles.paletteSwatch,
+                              {
+                                backgroundColor: col,
+                                borderColor:
+                                  col.toLowerCase() === (userColor ?? "").toLowerCase()
+                                    ? theme.colors.textPrimary
+                                    : "transparent",
+                              },
+                            ]}
+                          />
+                        ))}
+                      </ScrollView>
+                      {userColor && (
+                        <TouchableOpacity
+                          onPress={async () => {
+                            await setCalendarDefault(c.id, undefined);
+                            setCalColorEditingId(null);
+                            setCalendarColorMap(await getCalendarDefaults());
+                          }}
+                          style={{ paddingHorizontal: 8 }}
+                        >
+                          <Text style={{ color: theme.colors.textSecondary, fontWeight: "600" }}>
+                            Reset
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  )}
+                </View>
+              );
+            })
+          )}
+        </Section>
+
+        <Section
+          title="Save to iPhone Calendar"
+          description={
+            mirrorOn
+              ? 'SnapShift events are written to a "SnapShift" calendar in the iPhone Calendar app.'
+              : "Optional — turn on to mirror SnapShift events into your iPhone Calendar."
+          }
+        >
+          <View style={styles.row}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]}>
+                Mirror events
+              </Text>
+              <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>
+                {mirrorOn
+                  ? "Edits in SnapShift sync to iPhone Calendar."
+                  : 'Creates a "SnapShift" calendar on first turn-on.'}
+              </Text>
+            </View>
+            <Switch value={mirrorOn} onValueChange={handleMirrorToggle} />
           </View>
-          <Switch value={mirrorOn} onValueChange={handleMirrorToggle} />
-        </View>
-      </Section>
+        </Section>
+      </>
     );
   }
 
@@ -573,6 +687,64 @@ export default function SettingsScreen() {
             </View>
           ))
         )}
+      </Section>
+    );
+  }
+
+  function renderColorRulesSection() {
+    if (colorRules.length === 0) return null;
+    return (
+      <Section
+        title="Event Colors"
+        description="Color rules you've set from event detail screens. Tap to delete."
+      >
+        {colorRules.map((rule) => {
+          const calendarName = rule.matchCalendarId
+            ? calendars.find((c) => c.id === rule.matchCalendarId)?.title
+            : null;
+          return (
+            <View key={rule.id} style={styles.row}>
+              <View
+                style={[
+                  styles.dot,
+                  { width: 18, height: 18, borderRadius: 9, backgroundColor: rule.color },
+                ]}
+              />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.rowTitle, { color: theme.colors.textPrimary }]} numberOfLines={1}>
+                  {rule.matchTitle}
+                </Text>
+                <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>
+                  {calendarName
+                    ? `Only from ${calendarName}`
+                    : "All matching events"}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => {
+                  Alert.alert(
+                    "Remove color rule?",
+                    `Stop coloring events titled "${rule.matchTitle}".`,
+                    [
+                      { text: "Cancel", style: "cancel" },
+                      {
+                        text: "Remove",
+                        style: "destructive",
+                        onPress: async () => {
+                          await removeColorRule(rule.id);
+                          setColorRulesState(await getColorRules());
+                        },
+                      },
+                    ]
+                  );
+                }}
+                hitSlop={8}
+              >
+                <Text style={[styles.removeText, { color: "#F44336" }]}>Remove</Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
       </Section>
     );
   }
@@ -636,6 +808,7 @@ export default function SettingsScreen() {
       {renderDefaultShiftSection()}
       {renderCanvasSection()}
       {renderCalendarSection()}
+      {renderColorRulesSection()}
       {renderSharedWithMeSection()}
       {renderReviewSection()}
       {renderDiagnosticsSection()}
@@ -755,6 +928,26 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.5 },
 
   dot: { width: 14, height: 14, borderRadius: 7 },
+  calRowLeft: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  userSwatch: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    marginRight: 12,
+  },
+  palette: { flexDirection: "row", gap: 8, paddingVertical: 4 },
+  paletteSwatch: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 3,
+  },
   rowTitle: { fontSize: 15, fontWeight: "500" },
   rowSub: { fontSize: 12, marginTop: 2 },
   rowValue: { fontSize: 15, fontWeight: "600" },

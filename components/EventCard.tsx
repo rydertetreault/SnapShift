@@ -2,7 +2,12 @@ import { StyleSheet, Text, View, TouchableOpacity } from "react-native";
 import { format, parseISO } from "date-fns";
 import { ScheduleEvent } from "@/lib/types";
 import { useTheme } from "@/lib/theme/ThemeProvider";
-import { resolveCategory, useCategoryOverrides } from "@/lib/preferences";
+import { useCategoryOverrides } from "@/lib/preferences";
+import {
+  resolveEventColor,
+  useColorRules,
+  useCalendarDefaults,
+} from "@/lib/colors";
 
 interface EventCardProps {
   event: ScheduleEvent;
@@ -12,7 +17,13 @@ interface EventCardProps {
 export default function EventCard({ event, onPress }: EventCardProps) {
   const theme = useTheme();
   const overrides = useCategoryOverrides();
-  const category = resolveCategory(event.category, overrides);
+  const rules = useColorRules();
+  const calendarDefaults = useCalendarDefaults();
+  const resolved = resolveEventColor(event, {
+    rules,
+    calendarDefaults,
+    categoryOverrides: overrides,
+  });
   const startTime = format(parseISO(event.startTime), "h:mm a");
   const endTime = format(parseISO(event.endTime), "h:mm a");
 
@@ -22,7 +33,7 @@ export default function EventCard({ event, onPress }: EventCardProps) {
       onPress={() => onPress(event)}
       activeOpacity={0.7}
     >
-      <View style={[styles.categoryBar, { backgroundColor: category.color }]} />
+      <View style={[styles.categoryBar, { backgroundColor: resolved.color }]} />
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
           {event.title}
@@ -30,8 +41,8 @@ export default function EventCard({ event, onPress }: EventCardProps) {
         <Text style={[styles.time, { color: theme.colors.textSecondary }]}>
           {event.allDay ? "All day" : `${startTime} - ${endTime}`}
         </Text>
-        <Text style={[styles.category, { color: category.color }]}>
-          {category.name}
+        <Text style={[styles.category, { color: resolved.color }]}>
+          {resolved.name}
         </Text>
       </View>
     </TouchableOpacity>

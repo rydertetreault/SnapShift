@@ -40,7 +40,10 @@ export async function updateEvent(
   const events = await getAllEvents();
   const index = events.findIndex((e) => e.id === id);
   if (index === -1) return;
-  events[index] = { ...events[index], ...updates };
+  // v1.2.1: editing an event clears mirrorOptOut so the user can resurrect
+  // an event they previously deleted from iPhone Calendar by simply editing
+  // it again in SnapShift.
+  events[index] = { ...events[index], ...updates, mirrorOptOut: undefined };
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(events));
   const { mirrorSnapShiftEvents } = await import("./calendar/mirror");
   mirrorSnapShiftEvents().catch(() => {});
@@ -109,7 +112,8 @@ export async function updateSeries(
   const updated = events.map((e) => {
     if (e.seriesId !== seriesId) return e;
     if (fromDate && e.date < fromDate) return e;
-    return { ...e, ...updates };
+    // Same opt-out reset as updateEvent — see v1.2.1 note there.
+    return { ...e, ...updates, mirrorOptOut: undefined };
   });
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
   const { mirrorSnapShiftEvents } = await import("./calendar/mirror");
@@ -181,7 +185,24 @@ export async function upsertIosEvents(events: ScheduleEvent[]): Promise<void> {
   const merged: ScheduleEvent[] = [...nonIos];
   for (const incoming of events) {
     const prev = existingByIosId.get(incoming.iosCalendarEventId!);
-    merged.push(prev ? { ...prev, ...incoming } : incoming);
+    if (prev) {
+      // v1.2.1: preserve fields the user can edit on iOS-sourced events so
+      // they aren't blown away on every resync.
+      //  - category: user can re-categorize an iOS event in SnapShift; the
+      //    sync mapper always sets "other", so without this we'd reset on
+      //    every focus/AppState change. (bug 6)
+      //  - createdAt: stable since the first sync, not regenerated every
+      //    cycle, so sorts and "recently added" UI remain meaningful. (bug 7)
+      //  - notes: user-added notes on an iOS event (rare, but preserved).
+      merged.push({
+        ...incoming,
+        category: prev.category ?? incoming.category,
+        createdAt: prev.createdAt ?? incoming.createdAt,
+        notes: prev.notes ?? incoming.notes,
+      });
+    } else {
+      merged.push(incoming);
+    }
   }
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
 }

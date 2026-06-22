@@ -45,6 +45,9 @@ export interface ScheduleEvent {
   // OR when this SnapShift event has been mirrored to iPhone Calendar (source === "manual" or "ai").
   // The `source` field tells us which case applies. Used for upsert on re-sync and for deep-link "Open in Calendar".
   iosCalendarEventId?: string;
+  // The id of the iOS calendar this event came from (source === "ios" only).
+  // Used by the v1.2.1 color system to apply per-calendar color defaults.
+  iosCalendarId?: string;
   // True when the event is an all-day work marker with no specific time
   // (e.g. detected from a monthly grid OCR). UI hides time, EventKit mirror sets allDay.
   allDay?: boolean;
@@ -55,6 +58,11 @@ export interface ScheduleEvent {
   // True when this event came from an iOS holiday/birthday/subscription calendar.
   // Such all-day events are excluded from shared "busy" blocks.
   subscribed?: boolean;
+  // True when a previous mirror attempt failed because the user deleted this
+  // event in iPhone Calendar. We respect that decision and stop mirroring it,
+  // unless the user explicitly edits the event in SnapShift (which clears the
+  // flag) or the SnapShift mirror calendar is recreated.
+  mirrorOptOut?: boolean;
 }
 
 export interface ExtractedShift {

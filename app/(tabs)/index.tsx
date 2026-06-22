@@ -20,7 +20,13 @@ import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { ScheduleEvent } from "@/lib/types";
 import { getAllEvents } from "@/lib/storage";
 import { useTheme } from "@/lib/theme/ThemeProvider";
-import { resolveCategory, useCategoryOverrides } from "@/lib/preferences";
+import { useCategoryOverrides } from "@/lib/preferences";
+import {
+  resolveEventColor,
+  useColorRules,
+  useCalendarDefaults,
+} from "@/lib/colors";
+import { maybeResyncCalendars } from "@/lib/calendar/throttledSync";
 import EventCard from "@/components/EventCard";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -43,6 +49,8 @@ interface DaySection {
 export default function CalendarScreen() {
   const theme = useTheme();
   const overrides = useCategoryOverrides();
+  const rules = useColorRules();
+  const calendarDefaults = useCalendarDefaults();
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [selectedDate, setSelectedDate] = useState(
     format(new Date(), "yyyy-MM-dd")
@@ -93,6 +101,9 @@ export default function CalendarScreen() {
   useFocusEffect(
     useCallback(() => {
       loadEvents();
+      // v1.2.1: throttled resync on focus so iPhone Calendar edits land soon
+      // after switching back to SnapShift, not on next cold start.
+      maybeResyncCalendars();
     }, [])
   );
 
@@ -111,7 +122,11 @@ export default function CalendarScreen() {
     if (!markedDates[e.date]) {
       markedDates[e.date] = { dots: [], marked: true };
     }
-    const color = resolveCategory(e.category, overrides).color;
+    const color = resolveEventColor(e, {
+      rules,
+      calendarDefaults,
+      categoryOverrides: overrides,
+    }).color;
     const dots = markedDates[e.date].dots;
     if (!dots.some((d: any) => d.color === color)) {
       dots.push({ key: e.category, color });

@@ -29,7 +29,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: false,
     bundleIdentifier: "dev.rydertetreault.snapshift",
-    buildNumber: "4",
+    buildNumber: "5",
     // Universal Links: https links to /s/* on the proxy domain open SnapShift
     // directly (no Safari hop). Requires the AASA file at
     // https://snap-shift-proxy.vercel.app/.well-known/apple-app-site-association

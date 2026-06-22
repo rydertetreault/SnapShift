@@ -19,15 +19,26 @@ import { deleteFutureInSeries, deleteSeries, updateSeries } from "@/lib/storage"
 import CategoryPicker from "@/components/CategoryPicker";
 import PickerField from "@/components/PickerField";
 import { useTheme } from "@/lib/theme/ThemeProvider";
-import { useCategoryOverrides, resolveCategory } from "@/lib/preferences";
+import { useCategoryOverrides } from "@/lib/preferences";
+import {
+  resolveEventColor,
+  useColorRules,
+  useCalendarDefaults,
+  setColorRule,
+  removeColorRule,
+} from "@/lib/colors";
+import ColorRuleEditor from "@/components/ColorRuleEditor";
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const theme = useTheme();
   const overrides = useCategoryOverrides();
+  const rules = useColorRules();
+  const calendarDefaults = useCalendarDefaults();
   const [event, setEvent] = useState<ScheduleEvent | null>(null);
   const [editing, setEditing] = useState(false);
+  const [colorEditorOpen, setColorEditorOpen] = useState(false);
 
   // Editable fields
   const [title, setTitle] = useState("");
@@ -200,7 +211,11 @@ export default function EventDetailScreen() {
   const displayStart = format(parseISO(event.startTime), "h:mm a");
   const displayEnd = format(parseISO(event.endTime), "h:mm a");
   const dateDisplay = format(parseISO(event.date), "EEEE, MMMM d, yyyy");
-  const resolved = resolveCategory(event.category, overrides);
+  const resolved = resolveEventColor(event, {
+    rules,
+    calendarDefaults,
+    categoryOverrides: overrides,
+  });
 
   return (
     <ScrollView
@@ -323,6 +338,38 @@ export default function EventDetailScreen() {
             </View>
           ) : null}
 
+          {/* v1.2.1: color rule shortcut. Tap the swatch to color all events
+              sharing this title (optionally scoped to this iPhone calendar). */}
+          <View style={styles.colorRow}>
+            <Text style={[styles.label, { color: theme.colors.textMuted, flex: 1 }]}>Color</Text>
+            <TouchableOpacity
+              onPress={() => setColorEditorOpen(true)}
+              style={styles.colorRowBtn}
+              accessibilityLabel="Edit color for events with this title"
+            >
+              <View style={[styles.colorRowSwatch, { backgroundColor: resolved.color }]} />
+              <Text style={[styles.colorRowText, { color: theme.accent }]}>
+                {resolved.ruleId ? "Edit rule" : "Color all like this"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* v1.2.1: color rule shortcut. Tap the swatch to color all events
+              sharing this title (optionally scoped to this iPhone calendar). */}
+          <View style={styles.colorRow}>
+            <Text style={[styles.label, { color: theme.colors.textMuted, flex: 1 }]}>Color</Text>
+            <TouchableOpacity
+              onPress={() => setColorEditorOpen(true)}
+              style={styles.colorRowBtn}
+              accessibilityLabel="Edit color for events with this title"
+            >
+              <View style={[styles.colorRowSwatch, { backgroundColor: resolved.color }]} />
+              <Text style={[styles.colorRowText, { color: theme.accent }]}>
+                {resolved.ruleId ? "Edit rule" : "Color all like this"}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {event.source === "ios" ? (
             <View style={styles.buttonRow}>
               <TouchableOpacity
@@ -381,6 +428,26 @@ export default function EventDetailScreen() {
           )}
         </View>
       )}
+      <ColorRuleEditor
+        visible={colorEditorOpen}
+        title={event.title}
+        iosCalendarId={event.iosCalendarId}
+        currentColor={resolved.color}
+        hasExistingRule={!!resolved.ruleId}
+        onSave={async ({ color, scope }) => {
+          await setColorRule({
+            matchTitle: event.title,
+            matchCalendarId: scope === "titleAndCalendar" ? event.iosCalendarId : undefined,
+            color,
+          });
+          setColorEditorOpen(false);
+        }}
+        onReset={async () => {
+          if (resolved.ruleId) await removeColorRule(resolved.ruleId);
+          setColorEditorOpen(false);
+        }}
+        onCancel={() => setColorEditorOpen(false)}
+      />
     </ScrollView>
   );
 }
@@ -441,6 +508,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
+  colorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 20,
+  },
+  colorRowBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  colorRowSwatch: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+  },
+  colorRowText: { fontSize: 14, fontWeight: "600" },
   body: {
     fontSize: 14,
     lineHeight: 20,

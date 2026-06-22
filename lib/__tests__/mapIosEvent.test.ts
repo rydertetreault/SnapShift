@@ -28,6 +28,13 @@ describe("mapIosEventToScheduleEvent", () => {
   });
   test("maps core fields", () => {
     const out = mapIosEventToScheduleEvent(raw(), calType);
-    expect(out).toMatchObject({ id: "ios:e1", source: "ios", category: "other", title: "Dentist", date: "2026-06-09" });
+    expect(out).toMatchObject({
+      id: "ios:e1",
+      source: "ios",
+      category: "other",
+      title: "Dentist",
+      date: "2026-06-09",
+      iosCalendarId: "personal",
+    });
   });
 });
