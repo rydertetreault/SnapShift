@@ -14,7 +14,9 @@ export function upsertPerson(
     shifts: payload.shifts,
     busy: payload.busy,
     importedAt,
+    // Preserve local-only UI state across re-imports.
     hidden: existing?.hidden,
+    color: existing?.color,
   };
   if (existing) return people.map((p) => (p.id === payload.id ? next : p));
   return [...people, next];
@@ -30,4 +32,12 @@ export function setPersonHidden(
   hidden: boolean
 ): SharedPerson[] {
   return people.map((p) => (p.id === id ? { ...p, hidden } : p));
+}
+
+export function setPersonColor(
+  people: SharedPerson[],
+  id: string,
+  color: string | undefined
+): SharedPerson[] {
+  return people.map((p) => (p.id === id ? { ...p, color } : p));
 }

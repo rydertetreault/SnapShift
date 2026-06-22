@@ -3,7 +3,8 @@ import { Alert, Share } from "react-native";
 import { format } from "date-fns";
 import { getAllEvents } from "../storage";
 import { buildSharedWeek } from "./buildPayload";
-import { buildShareLink } from "./link";
+import { buildShareUrl, buildInlineShareLink } from "./link";
+import { createShortShare } from "./shortLink";
 import { getOrCreateShareId, getShareName, setShareName } from "./identity";
 
 // Prompt for a display name the first time. iOS Alert.prompt is fine here.
@@ -31,7 +32,13 @@ export async function shareWeek(weekStart: Date): Promise<void> {
   const id = await getOrCreateShareId();
   const events = await getAllEvents();
   const payload = buildSharedWeek(events, format(weekStart, "yyyy-MM-dd"), { id, name });
-  const link = buildShareLink(payload);
+
+  // Try short link first (much shorter URL + survives all autolinkers); on any
+  // failure (offline, proxy down, etc.) fall back to a self-contained inline
+  // link. Both shapes are path-based so neither gets truncated at `=`.
+  const shortId = await createShortShare(payload);
+  const link = shortId ? buildShareUrl(shortId) : buildInlineShareLink(payload);
+
   await Share.share({
     message: `${name}'s schedule for the week of ${format(weekStart, "MMM d")}: ${link}`,
   });

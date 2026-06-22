@@ -33,9 +33,15 @@ import {
   ACCENT_PALETTE,
 } from "@/lib/preferences";
 import { shareWeek } from "@/lib/sharing/share";
-import { getSharedPeople } from "@/lib/sharing/store";
+import {
+  getSharedPeople,
+  setSharedPersonHidden,
+  setSharedPersonColor,
+} from "@/lib/sharing/store";
 import { overlayBlocksForDay } from "@/lib/sharing/overlay";
 import { SharedPerson } from "@/lib/sharing/types";
+import { getOverlayEnabled, setOverlayEnabled } from "@/lib/sharing/visibility";
+import SharedPeopleFilter from "@/components/SharedPeopleFilter";
 import FontAwesome from "@expo/vector-icons/FontAwesome";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -54,6 +60,8 @@ export default function WeeklyScreen() {
   const overrides = useCategoryOverrides();
   const [events, setEvents] = useState<ScheduleEvent[]>([]);
   const [people, setPeople] = useState<SharedPerson[]>([]);
+  const [overlayEnabled, setOverlayEnabledState] = useState(true);
+  const [filterOpen, setFilterOpen] = useState(false);
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
@@ -69,11 +77,32 @@ export default function WeeklyScreen() {
     const loaded = await getAllEvents();
     setEvents(loaded);
     setPeople(await getSharedPeople());
+    setOverlayEnabledState(await getOverlayEnabled());
   }
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
   const weekEnd = days[6];
-  const visiblePeople = people.filter((p) => !p.hidden);
+  // When the master toggle is off, no overlays at all. Otherwise honor per-person hidden.
+  const overlayPeople = overlayEnabled ? people.filter((p) => !p.hidden) : [];
+  const colorFor = (p: { id: string; color?: string }) =>
+    p.color ?? personColor(p.id);
+  // Subtle badge on the filter button when any filter is non-default.
+  const hasActiveFilter =
+    !overlayEnabled || people.some((p) => p.hidden) || people.some((p) => p.color);
+
+  async function handleToggleOverlay(enabled: boolean) {
+    setOverlayEnabledState(enabled);
+    await setOverlayEnabled(enabled);
+  }
+  async function handleTogglePerson(id: string, visible: boolean) {
+    // Optimistic: update local state immediately so the modal feels instant.
+    setPeople((prev) => prev.map((p) => (p.id === id ? { ...p, hidden: !visible } : p)));
+    await setSharedPersonHidden(id, !visible);
+  }
+  async function handleChangePersonColor(id: string, color: string | undefined) {
+    setPeople((prev) => prev.map((p) => (p.id === id ? { ...p, color } : p)));
+    await setSharedPersonColor(id, color);
+  }
 
   function getEventsForDay(day: Date): ScheduleEvent[] {
     const dayStr = format(day, "yyyy-MM-dd");
@@ -178,33 +207,37 @@ export default function WeeklyScreen() {
         </View>
       </View>
 
-      {/* Shared-people legend */}
-      {visiblePeople.length > 0 && (
+      {/* Right-aligned filter button — only when something has been imported.
+          Replaces the old shared-people legend; names show on the overlay
+          blocks themselves, and visibility/colors are managed via the modal. */}
+      {people.length > 0 && (
         <View
           style={[
-            styles.legend,
+            styles.filterBar,
             {
               backgroundColor: theme.colors.surface,
               borderBottomColor: theme.colors.border,
             },
           ]}
         >
-          {visiblePeople.map((p) => (
-            <View key={p.id} style={styles.legendItem}>
-              <View
-                style={[
-                  styles.legendSwatch,
-                  { backgroundColor: personColor(p.id) },
-                ]}
-              />
-              <Text
-                style={[styles.legendName, { color: theme.colors.textSecondary }]}
-                numberOfLines={1}
-              >
-                {p.name}
-              </Text>
-            </View>
-          ))}
+          <TouchableOpacity
+            onPress={() => setFilterOpen(true)}
+            style={styles.filterBtn}
+            accessibilityLabel="Filter shared schedules"
+            hitSlop={6}
+          >
+            <FontAwesome
+              name="filter"
+              size={14}
+              color={theme.colors.textSecondary}
+            />
+            <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>
+              Shared
+            </Text>
+            {hasActiveFilter && (
+              <View style={[styles.filterDot, { backgroundColor: theme.accent }]} />
+            )}
+          </TouchableOpacity>
         </View>
       )}
 
@@ -217,7 +250,7 @@ export default function WeeklyScreen() {
         {days.map((day) => {
           const dayEvents = getEventsForDay(day);
           const dayStr = format(day, "yyyy-MM-dd");
-          const overlay = overlayBlocksForDay(people, dayStr);
+          const overlay = overlayBlocksForDay(overlayPeople, dayStr);
           const isToday = isSameDay(day, today);
 
           return (
@@ -349,6 +382,21 @@ export default function WeeklyScreen() {
         })}
       </ScrollView>
       </Animated.View>
+      <SharedPeopleFilter
+        visible={filterOpen}
+        people={people}
+        overlayEnabled={overlayEnabled}
+        autoColorFor={personColor}
+        onToggleOverlay={handleToggleOverlay}
+        onTogglePerson={handleTogglePerson}
+        onChangePersonColor={handleChangePersonColor}
+        onManagePress={() => {
+          setFilterOpen(false);
+          // The Settings tab still owns the rename/delete UI.
+          router.push("/(tabs)/settings");
+        }}
+        onClose={() => setFilterOpen(false)}
+      />
     </View>
     </GestureDetector>
   );
@@ -461,28 +509,29 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
-  legend: {
+  filterBar: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    justifyContent: "flex-end",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderBottomWidth: 1,
   },
-  legendItem: {
+  filterBtn: {
     flexDirection: "row",
     alignItems: "center",
-    marginRight: 14,
-    marginVertical: 2,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    gap: 6,
   },
-  legendSwatch: {
-    width: 12,
-    height: 12,
-    borderRadius: 3,
-    marginRight: 6,
-  },
-  legendName: {
+  filterLabel: {
     fontSize: 13,
     fontWeight: "600",
+  },
+  filterDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginLeft: 2,
   },
 });

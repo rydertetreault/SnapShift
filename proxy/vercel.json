@@ -1,3 +1,8 @@
 {
-  "rewrites": [{ "source": "/s", "destination": "/api/s" }]
+  "rewrites": [
+    { "source": "/s", "destination": "/api/s" },
+    { "source": "/s/:d", "destination": "/api/s?d=:d" },
+    { "source": "/api/share/:id", "destination": "/api/share/[id]?id=:id" },
+    { "source": "/.well-known/apple-app-site-association", "destination": "/api/aasa" }
+  ]
 }

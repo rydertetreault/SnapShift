@@ -30,6 +30,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     supportsTablet: false,
     bundleIdentifier: "dev.rydertetreault.snapshift",
     buildNumber: "4",
+    // Universal Links: https links to /s/* on the proxy domain open SnapShift
+    // directly (no Safari hop). Requires the AASA file at
+    // https://snap-shift-proxy.vercel.app/.well-known/apple-app-site-association
+    // which is served by proxy/api/aasa.js.
+    associatedDomains: ["applinks:snap-shift-proxy.vercel.app"],
     infoPlist: {
       NSPhotoLibraryUsageDescription:
         "SnapShift needs access to your photo library so you can upload schedule screenshots. Selected images may be sent to an AI service for reading when our local parser cannot recognize the format.",

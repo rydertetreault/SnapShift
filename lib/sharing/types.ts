@@ -39,4 +39,5 @@ export interface SharedPerson {
   busy: SharedBusy[];
   importedAt: string; // ISO datetime
   hidden?: boolean; // toggled in "Shared with me"
+  color?: string; // user-chosen overlay color; undefined = auto-derived from id
 }

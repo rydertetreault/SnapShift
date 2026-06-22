@@ -10,8 +10,9 @@ import { syncIosCalendars } from "@/lib/calendar/sync";
 import { mirrorSnapShiftEvents } from "@/lib/calendar/mirror";
 import { connectCanvas, syncCanvas } from "@/lib/canvas/sync";
 import { looksLikeCanvasFeedUrl } from "@/lib/canvas/preferences";
-import { extractPayloadParam } from "@/lib/sharing/link";
+import { extractPayloadParam, isShortShareId } from "@/lib/sharing/link";
 import { decodeWeek } from "@/lib/sharing/codec";
+import { fetchShortShare } from "@/lib/sharing/shortLink";
 import { importSharedWeek } from "@/lib/sharing/store";
 import { ThemeProvider, useTheme } from "@/lib/theme/ThemeProvider";
 import AnnouncementModal from "@/components/AnnouncementModal";
@@ -77,16 +78,34 @@ function RootLayout() {
       } catch {
         return;
       }
+      // Universal Link to the proxy /s/* path counts as a share-week link.
+      const isProxyShareUrl =
+        parsed.protocol === "https:" &&
+        parsed.host === "snap-shift-proxy.vercel.app" &&
+        parsed.pathname.startsWith("/s/");
       // expo-linking normalizes the host into path on iOS; check both.
-      const isShareWeek =
-        parsed.host === "share-week" ||
-        parsed.pathname.replace(/^\//, "") === "share-week";
-      if (isShareWeek) {
-        const d = extractPayloadParam(raw);
-        if (!d) return;
+      const isAppSchemeShareWeek =
+        parsed.protocol === "snapshift:" &&
+        (parsed.host === "share-week" ||
+          parsed.pathname.replace(/^\//, "") === "share-week");
+      if (isProxyShareUrl || isAppSchemeShareWeek) {
+        const token = extractPayloadParam(raw);
+        if (!token) return;
         let payload;
         try {
-          payload = decodeWeek(d);
+          if (isShortShareId(token)) {
+            const fetched = await fetchShortShare(token);
+            if (!fetched) {
+              Alert.alert(
+                "Couldn't import schedule",
+                "This shared link has expired or couldn't be loaded."
+              );
+              return;
+            }
+            payload = fetched;
+          } else {
+            payload = decodeWeek(token);
+          }
         } catch (e: any) {
           Alert.alert("Couldn't import schedule", e?.message ?? "This link is invalid.");
           return;
