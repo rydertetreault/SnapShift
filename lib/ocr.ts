@@ -1,6 +1,6 @@
 import { format } from "date-fns";
 import { runVisionOcr } from "./ocr/vision";
-import { resolveDates } from "./ocr/weekResolve";
+import { inferWeekStartFromDayNumbers, resolveDates } from "./ocr/weekResolve";
 import { ExtractedShift } from "./types";
 
 export interface OcrResult {
@@ -18,7 +18,27 @@ export async function parseScheduleImage(
   if (vision.shifts.length === 0) {
     throw new Error("No shifts found in this screenshot.");
   }
-  const weekStart = vision.weekStart ?? inferTodaysSaturday();
+
+  // Prefer the model's explicit weekStart. Otherwise try to derive the actual
+  // week from day-of-month numbers visible in the screenshot (e.g. "Sat 20"
+  // in a Publix expanded view). Only fall back to today's Saturday when we
+  // have no positional anchor at all.
+  let weekStart = vision.weekStart;
+  if (!weekStart) {
+    const dayNumbers: Record<string, number> = {};
+    for (const s of vision.shifts) {
+      if (typeof s.dayOfMonth === "number" && s.dayOfWeek) {
+        const key = s.dayOfWeek.toLowerCase();
+        if (!(key in dayNumbers)) dayNumbers[key] = s.dayOfMonth;
+      }
+    }
+    if (Object.keys(dayNumbers).length > 0) {
+      const inferred = inferWeekStartFromDayNumbers(dayNumbers as any);
+      if (inferred) weekStart = inferred;
+    }
+  }
+  if (!weekStart) weekStart = inferTodaysSaturday();
+
   // The engine may omit startTime/endTime for monthly-grid marker schedules.
   // Synthesize sentinel times and flag those shifts as all-day.
   const visionShifts: ExtractedShift[] = vision.shifts.map((s) => {
@@ -30,6 +50,8 @@ export async function parseScheduleImage(
       endTime: s.endTime ?? "11:59 PM",
       department: s.department,
       allDay,
+      breaks: !allDay && s.breaks?.length ? s.breaks : undefined,
+      segments: !allDay && s.segments?.length ? s.segments : undefined,
     };
   });
   return {

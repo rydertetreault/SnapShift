@@ -3,8 +3,7 @@ import {
   StyleSheet,
   Text,
   View,
-  SectionList,
-  TouchableOpacity,
+  FlatList,
   Dimensions,
 } from "react-native";
 import { Calendar, DateData } from "react-native-calendars";
@@ -64,8 +63,7 @@ export default function CalendarScreen() {
   }, []);
 
   const pan = Gesture.Pan()
-    .activeOffsetX([-15, 15])
-    .failOffsetY([-10, 10])
+    .activeOffsetX([-10, 10])
     .onUpdate((e) => {
       'worklet';
       translateX.value = e.translationX;
@@ -151,9 +149,9 @@ export default function CalendarScreen() {
   return (
     <View style={[styles.container, { backgroundColor: theme.colors.surface }]}>
       <GestureDetector gesture={pan}>
-        <Animated.View style={animatedStyle}>
+        <Animated.View style={[styles.calendarWrapper, animatedStyle]}>
           <Calendar
-            key={`${theme.mode}-${theme.accent}`}
+            key={`${theme.mode}-${theme.accent}-${selectedDate.slice(0, 7)}`}
             current={selectedDate}
             onDayPress={(day: DateData) => setSelectedDate(day.dateString)}
             markingType="multi-dot"
@@ -188,15 +186,16 @@ export default function CalendarScreen() {
       </View>
 
       {dayEvents.length > 0 ? (
-        <View style={styles.eventList}>
-          {dayEvents.map((event) => (
-            <EventCard
-              key={event.id}
-              event={event}
-              onPress={handleEventPress}
-            />
-          ))}
-        </View>
+        <FlatList
+          style={styles.eventList}
+          contentContainerStyle={styles.eventListContent}
+          data={dayEvents}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => (
+            <EventCard event={item} onPress={handleEventPress} />
+          )}
+          showsVerticalScrollIndicator
+        />
       ) : (
         <View style={styles.emptyState}>
           <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
@@ -211,6 +210,9 @@ export default function CalendarScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  calendarWrapper: {
+    width: "100%",
   },
   dayHeader: {
     flexDirection: "row",
@@ -229,7 +231,10 @@ const styles = StyleSheet.create({
   },
   eventList: {
     flex: 1,
+  },
+  eventListContent: {
     paddingTop: 8,
+    paddingBottom: 24,
   },
   emptyState: {
     flex: 1,

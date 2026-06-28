@@ -173,19 +173,59 @@ export default function UploadScreen() {
     }
 
     try {
-      const events: ScheduleEvent[] = shifts.map((shift) => {
-        // Parse the human-readable times like "2:00 PM" into Date objects.
-        // For all-day shifts (marker-style schedules), startTime/endTime are
-        // sentinel values ("12:00 AM" / "11:59 PM") so parseTimeString still works.
-        const startDate = parseTimeString(shift.startTime, shift.date);
+      const events: ScheduleEvent[] = [];
+      const failures: string[] = [];
+      shifts.forEach((shift) => {
+        try {
+          // Parse the human-readable times like "2:00 PM" into Date objects.
+          // For all-day shifts (marker-style schedules), startTime/endTime are
+          // sentinel values ("12:00 AM" / "11:59 PM") so parseTimeString still works.
+          const startDate = parseTimeString(shift.startTime, shift.date);
         const endDate = parseTimeString(shift.endTime, shift.date);
+
+        // Title: prefer joined role-segment names (e.g. "Cashier · Customer
+        // Service Staff"), then single department, then fallbacks.
+        const segmentRoles =
+          shift.segments
+            ?.map((s) => s.role.trim())
+            .filter((r) => r.length > 0) ?? [];
         const title = shift.allDay
           ? "Work"
-          : shift.department
-            ? shift.department
-            : "Shift";
+          : segmentRoles.length > 0
+            ? segmentRoles.join(" · ")
+            : shift.department
+              ? shift.department
+              : "Shift";
 
-        return {
+        const breaks = shift.breaks
+          ?.map((b) => {
+            try {
+              return {
+                start: parseTimeString(b.startTime, shift.date).toISOString(),
+                end: parseTimeString(b.endTime, shift.date).toISOString(),
+                label: b.label,
+              };
+            } catch {
+              return null;
+            }
+          })
+          .filter((b): b is NonNullable<typeof b> => b !== null);
+
+        const segments = shift.segments
+          ?.map((s) => {
+            try {
+              return {
+                start: parseTimeString(s.startTime, shift.date).toISOString(),
+                end: parseTimeString(s.endTime, shift.date).toISOString(),
+                role: s.role,
+              };
+            } catch {
+              return null;
+            }
+          })
+          .filter((s): s is NonNullable<typeof s> => s !== null);
+
+        events.push({
           id: Math.random().toString(36).substring(2, 10),
           title,
           date: shift.date,
@@ -195,24 +235,46 @@ export default function UploadScreen() {
           source: "ai" as const,
           createdAt: new Date().toISOString(),
           allDay: shift.allDay,
-        };
+          breaks: breaks && breaks.length > 0 ? breaks : undefined,
+          segments: segments && segments.length > 0 ? segments : undefined,
+        });
+        } catch (err: any) {
+          failures.push(`${shift.dayOfWeek}: ${err?.message ?? "parse error"}`);
+        }
       });
+
+      if (events.length === 0) {
+        Alert.alert(
+          "Save Error",
+          failures.length > 0
+            ? `Couldn't read any shifts.\n${failures.join("\n")}`
+            : "No shifts to save."
+        );
+        return;
+      }
 
       await saveMultipleEvents(events);
 
-      Alert.alert(
-        "Saved!",
-        `${events.length} shift${events.length !== 1 ? "s" : ""} added to your calendar.`,
-        [
-          {
-            text: "View Calendar",
-            onPress: () => {
-              resetState();
-              router.navigate("/(tabs)");
-            },
+      // Surface the actual dates that landed in storage so misrouted shifts
+      // (wrong week) don't appear as a silent "nothing happened" to the user.
+      const savedDates = Array.from(new Set(events.map((e) => e.date))).sort();
+      const dateSummary = savedDates.length
+        ? `Dates: ${savedDates.join(", ")}`
+        : "(no dates — check the week picker)";
+
+      const message =
+        failures.length > 0
+          ? `${events.length} shift${events.length !== 1 ? "s" : ""} saved. ${failures.length} skipped:\n${failures.join("\n")}\n\n${dateSummary}`
+          : `${events.length} shift${events.length !== 1 ? "s" : ""} added to your calendar.\n\n${dateSummary}`;
+      Alert.alert("Saved!", message, [
+        {
+          text: "View Calendar",
+          onPress: () => {
+            resetState();
+            router.navigate("/(tabs)");
           },
-        ]
-      );
+        },
+      ]);
     } catch (error: any) {
       Alert.alert("Save Error", error.message || "Could not save shifts.");
     }

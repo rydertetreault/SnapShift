@@ -11,6 +11,8 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Linking,
+  Image,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { format, formatDistanceToNow, parse } from "date-fns";
@@ -54,6 +56,14 @@ import {
 import { connectCanvas, syncCanvas } from "@/lib/canvas/sync";
 import { deleteAllCanvasEvents } from "@/lib/storage";
 import { openAppStoreReviewPage } from "@/lib/review";
+import { TIP_URL } from "@/lib/links";
+import {
+  APP_ICON_OPTIONS,
+  AppIconKey,
+  canChangeAppIcon,
+  getCurrentAppIcon,
+  setAppIcon,
+} from "@/lib/appIcon";
 import { sentryEnabled, sendSentryTestEvent } from "@/lib/sentry";
 import {
   getSharedPeople,
@@ -133,6 +143,13 @@ export default function SettingsScreen() {
   const [granted, setGranted] = useState(false);
   const [calendars, setCalendars] = useState<IosCalendar[]>([]);
   const [selectedIds, setSelectedIdsState] = useState<string[]>([]);
+  // App icon picker state. `currentIcon` is null when the default (Green)
+  // icon is active. `iconChangeSupported` is false in Expo Go / web — we
+  // still render the picker but disable taps and show an explainer.
+  const [currentIcon, setCurrentIcon] = useState<AppIconKey>(() =>
+    getCurrentAppIcon()
+  );
+  const iconChangeSupported = canChangeAppIcon();
   // v1.2.1 color customization state.
   const [calendarColorMap, setCalendarColorMap] = useState<CalendarColorMap>({});
   const [calColorEditingId, setCalColorEditingId] = useState<string | null>(null);
@@ -297,9 +314,30 @@ export default function SettingsScreen() {
   }
 
   function renderAppearanceSection() {
+    async function handlePickIcon(key: AppIconKey) {
+      if (!iconChangeSupported) {
+        Alert.alert(
+          "Not available here",
+          "Custom app icons require a full build of SnapShift from the App Store. They can't be changed in Expo Go or web."
+        );
+        return;
+      }
+      // Optimistic: update the selected state immediately. iOS will show its
+      // own system alert ("You have changed the icon for SnapShift") right after.
+      const prev = currentIcon;
+      setCurrentIcon(key);
+      const result = await setAppIcon(key);
+      if (result !== key) {
+        // Revert if the change didn't actually take.
+        setCurrentIcon(prev);
+        Alert.alert("Couldn't change icon", "Something went wrong. Please try again.");
+      }
+    }
+
     return (
-      <Section title="Appearance">
+      <Section title="App appearance">
         <View style={styles.cardBody}>
+          {/* THEME */}
           <Text style={[styles.fieldLabel, { color: theme.colors.textMuted }]}>Theme</Text>
           <View style={styles.pillRow}>
             {(["system", "light", "dark"] as const).map((mode) => {
@@ -326,6 +364,7 @@ export default function SettingsScreen() {
             })}
           </View>
 
+          {/* ACCENT */}
           <Text style={[styles.fieldLabel, styles.fieldLabelSpaced, { color: theme.colors.textMuted }]}>
             Accent color
           </Text>
@@ -347,6 +386,62 @@ export default function SettingsScreen() {
               );
             })}
           </View>
+
+          {/* APP ICON */}
+          <Text style={[styles.fieldLabel, styles.fieldLabelSpaced, { color: theme.colors.textMuted }]}>
+            App icon
+          </Text>
+          {!iconChangeSupported && (
+            <Text style={[styles.helpText, { color: theme.colors.textMuted, marginBottom: 8 }]}>
+              Previewing only. Custom icons activate in the App Store build.
+            </Text>
+          )}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.iconCarousel}
+            // Snap each item to a column so the carousel feels deliberate.
+            decelerationRate="fast"
+            snapToInterval={92}
+            snapToAlignment="start"
+          >
+            {APP_ICON_OPTIONS.map((opt) => {
+              const selected = (currentIcon ?? null) === (opt.key ?? null);
+              return (
+                <TouchableOpacity
+                  key={String(opt.key ?? "default")}
+                  onPress={() => handlePickIcon(opt.key)}
+                  style={styles.iconCell}
+                  accessibilityLabel={`Set app icon to ${opt.label}`}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={[
+                      styles.iconWrap,
+                      {
+                        borderColor: selected ? theme.accent : theme.colors.border,
+                        borderWidth: selected ? 3 : 1,
+                      },
+                    ]}
+                  >
+                    <Image source={opt.preview} style={styles.iconImg} />
+                  </View>
+                  <Text
+                    style={[
+                      styles.iconLabel,
+                      {
+                        color: selected ? theme.accent : theme.colors.textSecondary,
+                        fontWeight: selected ? "700" : "500",
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
         </View>
       </Section>
     );
@@ -541,7 +636,10 @@ export default function SettingsScreen() {
                       <View
                         style={[
                           styles.dot,
-                          { backgroundColor: c.color || theme.colors.textMuted },
+                          {
+                            backgroundColor:
+                              userColor ?? c.color ?? theme.colors.textMuted,
+                          },
                         ]}
                       />
                       <View style={{ flex: 1 }}>
@@ -559,18 +657,52 @@ export default function SettingsScreen() {
                         hitSlop={8}
                         accessibilityLabel={`Set SnapShift color for ${c.title}`}
                         style={[
-                          styles.userSwatch,
+                          styles.colorEditPill,
                           {
-                            backgroundColor: userColor ?? "transparent",
                             borderColor: editing
-                              ? theme.colors.textPrimary
-                              : userColor
-                              ? "transparent"
+                              ? theme.accent
                               : theme.colors.border,
-                            borderStyle: userColor ? "solid" : "dashed",
+                            backgroundColor: editing
+                              ? theme.accent + "15"
+                              : "transparent",
                           },
                         ]}
-                      />
+                      >
+                        <View
+                          style={[
+                            styles.colorEditPillSwatch,
+                            {
+                              backgroundColor:
+                                userColor ?? c.color ?? theme.colors.textMuted,
+                              borderColor: theme.colors.border,
+                            },
+                          ]}
+                        />
+                        <Text
+                          style={[
+                            styles.colorEditPillText,
+                            {
+                              color: editing
+                                ? theme.accent
+                                : theme.colors.textSecondary,
+                            },
+                          ]}
+                        >
+                          Color
+                        </Text>
+                        <Text
+                          style={[
+                            styles.colorEditPillChevron,
+                            {
+                              color: editing
+                                ? theme.accent
+                                : theme.colors.textMuted,
+                            },
+                          ]}
+                        >
+                          {editing ? "▾" : "›"}
+                        </Text>
+                      </TouchableOpacity>
                     )}
                     <Checkbox
                       checked={active}
@@ -763,6 +895,24 @@ export default function SettingsScreen() {
           >
             <Text style={styles.primaryBtnText}>Leave a Review</Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.linkBtn}
+            onPress={async () => {
+              try {
+                await Linking.openURL(TIP_URL);
+              } catch {
+                Alert.alert(
+                  "Couldn't open browser",
+                  "Visit " + TIP_URL + " for more ways to support."
+                );
+              }
+            }}
+            accessibilityLabel="Other ways to support the developer"
+          >
+            <Text style={[styles.linkBtnText, { color: theme.accent }]}>
+              More ways to support →
+            </Text>
+          </TouchableOpacity>
         </View>
       </Section>
     );
@@ -925,6 +1075,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   secondaryBtnText: { fontSize: 16, fontWeight: "600" },
+  linkBtn: {
+    alignSelf: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginTop: 4,
+  },
+  linkBtnText: { fontSize: 14, fontWeight: "500" },
   btnDisabled: { opacity: 0.5 },
 
   dot: { width: 14, height: 14, borderRadius: 7 },
@@ -940,6 +1097,31 @@ const styles = StyleSheet.create({
     borderRadius: 11,
     borderWidth: 2,
     marginRight: 12,
+  },
+  colorEditPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginRight: 12,
+  },
+  colorEditPillSwatch: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  colorEditPillText: {
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  colorEditPillChevron: {
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 2,
   },
   palette: { flexDirection: "row", gap: 8, paddingVertical: 4 },
   paletteSwatch: {
@@ -959,6 +1141,38 @@ const styles = StyleSheet.create({
   pill: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center" },
   pillText: { fontSize: 14, fontWeight: "600" },
   swatchRow: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  // App icon picker (horizontal carousel)
+  iconCarousel: {
+    paddingVertical: 4,
+    paddingRight: 8,
+    gap: 12,
+    flexDirection: "row",
+  },
+  iconCell: {
+    width: 80,
+    alignItems: "center",
+    gap: 8,
+  },
+  iconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 16,
+    overflow: "hidden",
+    backgroundColor: "transparent",
+  },
+  iconImg: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+  },
+  iconLabel: {
+    fontSize: 12,
+    textAlign: "center",
+  },
+  helpText: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
   swatch: { width: 36, height: 36, borderRadius: 18, borderWidth: 3 },
 
   input: { borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 14, marginBottom: 6 },

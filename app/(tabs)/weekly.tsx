@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
+  Alert,
 } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
@@ -42,7 +43,9 @@ import {
   getSharedPeople,
   setSharedPersonHidden,
   setSharedPersonColor,
+  importSharedWeek,
 } from "@/lib/sharing/store";
+import { fetchShortShare } from "@/lib/sharing/shortLink";
 import { overlayBlocksForDay } from "@/lib/sharing/overlay";
 import { SharedPerson } from "@/lib/sharing/types";
 import { getOverlayEnabled, setOverlayEnabled } from "@/lib/sharing/visibility";
@@ -70,6 +73,7 @@ export default function WeeklyScreen() {
   const [people, setPeople] = useState<SharedPerson[]>([]);
   const [overlayEnabled, setOverlayEnabledState] = useState(true);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [filterAnchorY, setFilterAnchorY] = useState(0);
   const [weekStart, setWeekStart] = useState(() =>
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
@@ -110,6 +114,56 @@ export default function WeeklyScreen() {
   async function handleChangePersonColor(id: string, color: string | undefined) {
     setPeople((prev) => prev.map((p) => (p.id === id ? { ...p, color } : p)));
     await setSharedPersonColor(id, color);
+  }
+
+  // Manual import: lets a user paste a share link/ID without needing to tap
+  // a Universal Link. Also the only way to import on Expo Go (no entitlement).
+  async function handleImportShared() {
+    Alert.prompt(
+      "Import shared schedule",
+      "Paste a SnapShift share link (snap-shift-proxy.vercel.app/s/…) someone sent you. Other links won't work.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Import",
+          onPress: async (raw?: string) => {
+            if (!raw) return;
+            const trimmed = raw.trim();
+            const match = trimmed.match(/\/s\/([A-Za-z0-9_-]+)/);
+            const id = match ? match[1] : trimmed;
+            // Basic sanity: short IDs are 6–12 chars of [A-Za-z0-9_-]. If the
+            // user pasted something that doesn't even look like a SnapShift
+            // link or ID, stop before hitting the proxy.
+            if (!/^[A-Za-z0-9_-]{6,12}$/.test(id)) {
+              Alert.alert(
+                "That doesn't look like a SnapShift link",
+                "It should look like https://snap-shift-proxy.vercel.app/s/abc12345 — make sure you copied the whole link from SnapShift."
+              );
+              return;
+            }
+            try {
+              const payload = await fetchShortShare(id);
+              if (!payload) {
+                Alert.alert(
+                  "Import failed",
+                  "We couldn't find a schedule for that link. It may have expired, or it isn't a SnapShift share link."
+                );
+                return;
+              }
+              await importSharedWeek(payload);
+              await loadEvents();
+              Alert.alert(
+                "Imported",
+                `${payload.name}'s week (${payload.week}) added.`
+              );
+            } catch (e: any) {
+              Alert.alert("Import failed", e?.message ?? "Unknown error.");
+            }
+          },
+        },
+      ],
+      "plain-text"
+    );
   }
 
   function getEventsForDay(day: Date): ScheduleEvent[] {
@@ -201,10 +255,80 @@ export default function WeeklyScreen() {
           >
             <FontAwesome name="chevron-right" size={16} color={theme.accent} />
           </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Action bar: shared-people dropdown trigger on the left (when there
+          are imports), share + debug-import on the right. Always rendered so
+          the share button is always reachable. */}
+      <View
+        onLayout={(e) => {
+          const { y, height } = e.nativeEvent.layout;
+          setFilterAnchorY(y + height);
+        }}
+        style={[
+          styles.filterBar,
+          {
+            backgroundColor: theme.colors.surface,
+            borderBottomColor: theme.colors.border,
+          },
+        ]}
+      >
+        {/* Left: shared-people dropdown trigger (only when imports exist) */}
+        {people.length > 0 ? (
+          <TouchableOpacity
+            onPress={() => setFilterOpen(true)}
+            style={[
+              styles.filterBtn,
+              {
+                backgroundColor: theme.colors.background,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            accessibilityLabel="Filter and color shared schedules"
+            hitSlop={6}
+          >
+            {/* Stacked color dots for the first few people */}
+            <View style={styles.dotStack}>
+              {people.slice(0, 4).map((p, i) => (
+                <View
+                  key={p.id}
+                  style={[
+                    styles.dot,
+                    {
+                      backgroundColor: p.color ?? personColor(p.id),
+                      borderColor: theme.colors.surface,
+                      marginLeft: i === 0 ? 0 : -6,
+                      opacity: p.hidden || !overlayEnabled ? 0.35 : 1,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+            <Text style={[styles.filterLabel, { color: theme.colors.textPrimary }]}>
+              {people.length === 1 ? "Shared schedule" : `Shared · ${people.length}`}
+            </Text>
+            {hasActiveFilter && (
+              <View style={[styles.filterDot, { backgroundColor: theme.accent }]} />
+            )}
+            <FontAwesome
+              name="caret-down"
+              size={14}
+              color={theme.colors.textSecondary}
+            />
+          </TouchableOpacity>
+        ) : (
+          // Empty spacer so the right-side buttons stay right-aligned.
+          <View />
+        )}
+
+        {/* Right: share + debug import */}
+        <View style={styles.actionRight}>
           <TouchableOpacity
             onPress={() => shareWeek(weekStart)}
-            style={styles.navButton}
+            style={styles.iconBtn}
             accessibilityLabel="Share this week"
+            hitSlop={6}
           >
             <FontAwesome
               name="share-square-o"
@@ -212,42 +336,20 @@ export default function WeeklyScreen() {
               color={theme.colors.textPrimary}
             />
           </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Right-aligned filter button — only when something has been imported.
-          Replaces the old shared-people legend; names show on the overlay
-          blocks themselves, and visibility/colors are managed via the modal. */}
-      {people.length > 0 && (
-        <View
-          style={[
-            styles.filterBar,
-            {
-              backgroundColor: theme.colors.surface,
-              borderBottomColor: theme.colors.border,
-            },
-          ]}
-        >
           <TouchableOpacity
-            onPress={() => setFilterOpen(true)}
-            style={styles.filterBtn}
-            accessibilityLabel="Filter shared schedules"
+            onPress={handleImportShared}
+            style={styles.iconBtn}
+            accessibilityLabel="Import a shared schedule"
             hitSlop={6}
           >
             <FontAwesome
-              name="filter"
-              size={14}
-              color={theme.colors.textSecondary}
+              name="download"
+              size={18}
+              color={theme.colors.textPrimary}
             />
-            <Text style={[styles.filterLabel, { color: theme.colors.textSecondary }]}>
-              Shared
-            </Text>
-            {hasActiveFilter && (
-              <View style={[styles.filterDot, { backgroundColor: theme.accent }]} />
-            )}
           </TouchableOpacity>
         </View>
-      )}
+      </View>
 
       {/* Day rows */}
       <Animated.View style={[{ flex: 1 }, animatedStyle]}>
@@ -395,6 +497,7 @@ export default function WeeklyScreen() {
         visible={filterOpen}
         people={people}
         overlayEnabled={overlayEnabled}
+        anchorY={filterAnchorY}
         autoColorFor={personColor}
         onToggleOverlay={handleToggleOverlay}
         onTogglePerson={handleTogglePerson}
@@ -520,10 +623,10 @@ const styles = StyleSheet.create({
   },
   filterBar: {
     flexDirection: "row",
-    justifyContent: "flex-end",
+    justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderBottomWidth: 1,
   },
   filterBtn: {
@@ -531,11 +634,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 10,
     paddingVertical: 6,
-    gap: 6,
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 18,
+  },
+  actionRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  iconBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  dotStack: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  dot: {
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    borderWidth: 2,
   },
   filterLabel: {
     fontSize: 13,
     fontWeight: "600",
+    maxWidth: 140,
   },
   filterDot: {
     width: 6,

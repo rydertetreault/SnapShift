@@ -123,60 +123,77 @@ export default function AddEventScreen() {
       >
         <Text style={[styles.heading, { color: theme.colors.textPrimary }]}>New Event</Text>
 
-        {/* Title */}
-        <Text style={[styles.label, { color: theme.colors.textMuted }]}>Title</Text>
-        <TextInput
-          style={[styles.input, { borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-          value={title}
-          onChangeText={setTitle}
-          placeholder='e.g. "Dr. Smith Appointment"'
-          placeholderTextColor={theme.colors.textMuted}
-          returnKeyType="done"
-        />
+        {/* TITLE */}
+        <Text style={[styles.sectionHeader, { color: theme.colors.textMuted }]}>Title</Text>
+        <View style={[styles.card, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
+          <TextInput
+            style={[styles.cardInput, { color: theme.colors.textPrimary }]}
+            value={title}
+            onChangeText={setTitle}
+            placeholder='e.g. "Dr. Smith Appointment"'
+            placeholderTextColor={theme.colors.textMuted}
+            returnKeyType="done"
+          />
+        </View>
 
-        {/* Date */}
-        <PickerField
-          label="Date"
-          value={date}
-          mode="date"
-          onChange={setDate}
-        />
+        {/* WHEN */}
+        <Text style={[styles.sectionHeader, { color: theme.colors.textMuted }]}>When</Text>
+        <View style={[styles.card, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
+          <View style={styles.cardRow}>
+            <PickerField
+              label="Date"
+              value={date}
+              mode="date"
+              onChange={setDate}
+              containerStyle={styles.pickerInCard}
+            />
+          </View>
+          <View style={[styles.cardDivider, { backgroundColor: theme.colors.border }]} />
+          <View style={styles.cardRow}>
+            <PickerField
+              label="Start Time"
+              value={startTime}
+              mode="time"
+              onChange={setStartTime}
+              containerStyle={styles.pickerInCard}
+            />
+          </View>
+          <View style={[styles.cardDivider, { backgroundColor: theme.colors.border }]} />
+          <View style={styles.cardRow}>
+            <PickerField
+              label="End Time"
+              value={endTime}
+              mode="time"
+              onChange={setEndTime}
+              containerStyle={styles.pickerInCard}
+            />
+          </View>
+        </View>
 
-        {/* Start Time */}
-        <PickerField
-          label="Start Time"
-          value={startTime}
-          mode="time"
-          onChange={setStartTime}
-        />
+        {/* REPEAT */}
+        <Text style={[styles.sectionHeader, { color: theme.colors.textMuted }]}>Repeat</Text>
+        <View style={[styles.card, styles.cardTight, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
+          <RepeatPicker value={recurrence} onChange={setRecurrence} />
+        </View>
 
-        {/* End Time */}
-        <PickerField
-          label="End Time"
-          value={endTime}
-          mode="time"
-          onChange={setEndTime}
-        />
+        {/* CATEGORY */}
+        <Text style={[styles.sectionHeader, { color: theme.colors.textMuted }]}>Category</Text>
+        <View style={[styles.card, styles.cardTight, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
+          <CategoryPicker selected={category} onSelect={setCategory} />
+        </View>
 
-        {/* Repeat */}
-        <RepeatPicker value={recurrence} onChange={setRecurrence} />
-
-        {/* Category */}
-        <Text style={[styles.label, { color: theme.colors.textMuted, marginTop: 20 }]}>Category</Text>
-        <CategoryPicker selected={category} onSelect={setCategory} />
-
-        {/* Notes */}
-        <Text style={[styles.label, { color: theme.colors.textMuted, marginTop: 20 }]}>
-          Notes (optional)
-        </Text>
-        <TextInput
-          style={[styles.input, styles.notesInput, { borderColor: theme.colors.border, color: theme.colors.textPrimary }]}
-          value={notes}
-          onChangeText={setNotes}
-          placeholder="Any extra details..."
-          placeholderTextColor={theme.colors.textMuted}
-          multiline
-        />
+        {/* NOTES */}
+        <Text style={[styles.sectionHeader, { color: theme.colors.textMuted }]}>Notes (optional)</Text>
+        <View style={[styles.card, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
+          <TextInput
+            style={[styles.cardInput, styles.notesInput, { color: theme.colors.textPrimary }]}
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Any extra details..."
+            placeholderTextColor={theme.colors.textMuted}
+            multiline
+          />
+        </View>
 
         {/* Save Button */}
         <TouchableOpacity
@@ -205,8 +222,44 @@ const styles = StyleSheet.create({
   heading: {
     fontSize: 28,
     fontWeight: "bold",
-    marginBottom: 24,
+    marginBottom: 20,
   },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginTop: 20,
+    marginBottom: 8,
+    paddingHorizontal: 4,
+  },
+  card: {
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
+  },
+  cardTight: {
+    // RepeatPicker and CategoryPicker render their own chips/pills with no
+    // internal padding — add it on the card so the chips breathe inside.
+    padding: 14,
+  },
+  cardRow: {
+    paddingHorizontal: 14,
+  },
+  cardDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: 14,
+  },
+  cardInput: {
+    padding: 14,
+    fontSize: 16,
+  },
+  pickerInCard: {
+    marginBottom: 0,
+    paddingVertical: 10,
+    minHeight: 44,
+  },
+  // Legacy — kept for now since other call sites may still reference it.
   label: {
     fontSize: 13,
     fontWeight: "600",

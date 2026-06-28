@@ -20,7 +20,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,
   name: "SnapShift",
   slug: "snapshift",
-  version: "1.2.0",
+  version: "1.3.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "snapshift",
@@ -29,7 +29,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   ios: {
     supportsTablet: false,
     bundleIdentifier: "dev.rydertetreault.snapshift",
-    buildNumber: "5",
+    buildNumber: "15",
     // Universal Links: https links to /s/* on the proxy domain open SnapShift
     // directly (no Safari hop). Requires the AASA file at
     // https://snap-shift-proxy.vercel.app/.well-known/apple-app-site-association
@@ -60,7 +60,11 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         image: "./assets/images/splash-icon.png",
         imageWidth: 200,
         resizeMode: "contain",
-        backgroundColor: "#2d642a",
+        // Neutral white so the splash pairs with any user-selected app icon
+        // color (Green default, Blue, Pink, Charcoal, etc). The splash icon
+        // itself is a dark logo on a transparent background; this color is
+        // what shows behind it.
+        backgroundColor: "#ffffff",
       },
     ],
     "@react-native-community/datetimepicker",
@@ -85,6 +89,25 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
           "expo-font",
         ],
       },
+    ],
+    // Alternate app icons. The default icon stays at `./assets/images/icon.png`
+    // (the original green). These are the user-selectable variants. Names use
+    // PascalCase per the plugin's convention; the keys we ship in code below
+    // mirror them (`Blue`, `Purple`, etc.). Adding/removing icons requires a
+    // new App Store build — they can't be updated OTA.
+    [
+      "expo-alternate-app-icons",
+      [
+        { name: "Blue",     ios: "./assets/images/icons-alt/icon-blue.png" },
+        { name: "Purple",   ios: "./assets/images/icons-alt/icon-purple.png" },
+        { name: "Pink",     ios: "./assets/images/icons-alt/icon-pink.png" },
+        { name: "Orange",   ios: "./assets/images/icons-alt/icon-orange.png" },
+        { name: "Red",      ios: "./assets/images/icons-alt/icon-red.png" },
+        { name: "Charcoal", ios: "./assets/images/icons-alt/icon-charcoal.png" },
+        { name: "Grey",     ios: "./assets/images/icons-alt/icon-grey.png" },
+        { name: "GreyBlack",ios: "./assets/images/icons-alt/icon-grey-black.png" },
+        { name: "White",    ios: "./assets/images/icons-alt/icon-white.png" },
+      ],
     ],
     ...sentryPlugin,
   ],

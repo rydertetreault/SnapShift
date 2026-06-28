@@ -39,7 +39,15 @@ export async function shareWeek(weekStart: Date): Promise<void> {
   const shortId = await createShortShare(payload);
   const link = shortId ? buildShareUrl(shortId) : buildInlineShareLink(payload);
 
+  // Share the URL alone (no leading text) so iOS uses LPLinkMetadata to render
+  // a rich preview cell at the top of the Share Sheet (app icon + title from
+  // the page's OG/apple-touch-icon tags). When text is mixed with a URL, iOS
+  // falls back to a generic text icon — hence URL-only here.
   await Share.share({
-    message: `${name}'s schedule for the week of ${format(weekStart, "MMM d")}: ${link}`,
+    url: link,
+    // `message` is needed for non-URL-aware channels (SMS to Android, Slack
+    // pasted as text, etc.) where the URL alone wouldn't carry context. iOS
+    // shows the URL preview cell as long as `url` is set.
+    message: link,
   });
 }

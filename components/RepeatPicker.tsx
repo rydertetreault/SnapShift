@@ -69,7 +69,6 @@ export default function RepeatPicker({ value, onChange }: Props) {
 
   return (
     <View>
-      <Text style={[styles.label, { color: theme.colors.textMuted }]}>Repeats</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pills}>
         {PRESETS.map((p) => {
           const active = value.frequency === p.key;
@@ -193,7 +192,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     marginTop: 8,
   },
-  pills: { gap: 8, paddingVertical: 4 },
+  pills: { gap: 8, paddingVertical: 0 },
   pill: {
     paddingHorizontal: 14,
     paddingVertical: 8,

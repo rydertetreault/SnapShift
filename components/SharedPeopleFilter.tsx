@@ -1,11 +1,13 @@
 // components/SharedPeopleFilter.tsx
-// Bottom-sheet modal opened from the Weekly view header that lets the user:
+// Dropdown panel anchored under the Weekly view's "Shared" button. Lets the user:
 //   - master-toggle whether imported shared schedules are drawn at all
 //   - per-person hide/show via a checkbox
-//   - per-person color override via an inline palette
+//   - per-person color override via an inline palette (tap the swatch to open)
 //   - jump into Settings to delete/rename via "Manage in Settings →"
 //
-// All state is hoisted — callbacks fire and the parent persists + reloads.
+// Renders inside a transparent Modal so it can float above the page chrome and
+// dismiss on outside-tap, but visually it's a dropdown — anchored at `anchorY`
+// (the screen-Y of the bottom of the trigger button).
 import { useState } from "react";
 import {
   Modal,
@@ -26,6 +28,8 @@ interface Props {
   visible: boolean;
   people: SharedPerson[];
   overlayEnabled: boolean;
+  /** Screen-Y (px) the dropdown should drop from. Bottom of the trigger row. */
+  anchorY: number;
   /** Derives the auto color from a person id when the user hasn't picked one. */
   autoColorFor: (personId: string) => string;
   onToggleOverlay: (enabled: boolean) => void;
@@ -39,6 +43,7 @@ export default function SharedPeopleFilter({
   visible,
   people,
   overlayEnabled,
+  anchorY,
   autoColorFor,
   onToggleOverlay,
   onTogglePerson,
@@ -50,26 +55,46 @@ export default function SharedPeopleFilter({
   const [editingColorFor, setEditingColorFor] = useState<string | null>(null);
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal visible={visible} animationType="fade" transparent onRequestClose={onClose}>
       <Pressable style={styles.backdrop} onPress={onClose}>
         <Pressable
-          style={[styles.sheet, { backgroundColor: theme.colors.surface }]}
-          // Stop tap-through so taps inside the sheet don't dismiss it.
+          style={[
+            styles.panel,
+            {
+              top: anchorY + 4,
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+              shadowColor: "#000",
+            },
+          ]}
+          // Stop tap-through so taps inside the panel don't dismiss it.
           onPress={(e) => e.stopPropagation()}
         >
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
-              Shared schedules
-            </Text>
+          {/* Header */}
+          <View style={[styles.header, { borderBottomColor: theme.colors.border }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.title, { color: theme.colors.textPrimary }]}>
+                Shared schedules
+              </Text>
+              <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
+                Tap a color dot to recolor • uncheck to hide
+              </Text>
+            </View>
             <Pressable onPress={onClose} hitSlop={10}>
-              <FontAwesome name="close" size={22} color={theme.colors.textMuted} />
+              <FontAwesome name="close" size={20} color={theme.colors.textMuted} />
             </Pressable>
           </View>
 
+          {/* Master toggle */}
           <View style={[styles.row, { borderBottomColor: theme.colors.border }]}>
-            <Text style={[styles.rowText, { color: theme.colors.textPrimary }]}>
-              Show on weekly view
-            </Text>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.rowText, { color: theme.colors.textPrimary }]}>
+                Show on weekly view
+              </Text>
+              <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>
+                Master toggle for all imported schedules
+              </Text>
+            </View>
             <Switch
               value={overlayEnabled}
               onValueChange={onToggleOverlay}
@@ -77,14 +102,19 @@ export default function SharedPeopleFilter({
             />
           </View>
 
-          <ScrollView style={styles.list} contentContainerStyle={{ paddingBottom: 4 }}>
+          {/* People list */}
+          <ScrollView
+            style={styles.list}
+            contentContainerStyle={{ paddingBottom: 4 }}
+            keyboardShouldPersistTaps="handled"
+          >
             {people.length === 0 ? (
               <Text style={[styles.empty, { color: theme.colors.textMuted }]}>
                 No imported schedules yet.
               </Text>
             ) : (
               people.map((p) => {
-                const visible = !p.hidden;
+                const isVisible = !p.hidden;
                 const swatch = p.color ?? autoColorFor(p.id);
                 const editing = editingColorFor === p.id;
                 return (
@@ -97,25 +127,37 @@ export default function SharedPeopleFilter({
                       ]}
                     >
                       <Checkbox
-                        checked={visible}
+                        checked={isVisible}
                         onChange={(next) => onTogglePerson(p.id, next)}
                         accessibilityLabel={`Show ${p.name}'s schedule`}
                         disabled={!overlayEnabled}
                       />
+                      {/* Color swatch — wrapped in a labeled, more obvious pressable */}
                       <Pressable
-                        onPress={() =>
-                          setEditingColorFor(editing ? null : p.id)
-                        }
-                        hitSlop={6}
+                        onPress={() => setEditingColorFor(editing ? null : p.id)}
+                        hitSlop={8}
                         accessibilityLabel={`Change color for ${p.name}`}
-                        style={[
-                          styles.swatch,
+                        style={({ pressed }) => [
+                          styles.swatchBtn,
                           {
-                            backgroundColor: swatch,
-                            borderColor: editing ? theme.colors.textPrimary : "transparent",
+                            borderColor: editing
+                              ? theme.accent
+                              : theme.colors.border,
+                            backgroundColor: pressed
+                              ? theme.colors.background
+                              : "transparent",
                           },
                         ]}
-                      />
+                      >
+                        <View
+                          style={[styles.swatchDot, { backgroundColor: swatch }]}
+                        />
+                        <FontAwesome
+                          name={editing ? "caret-up" : "caret-down"}
+                          size={12}
+                          color={theme.colors.textMuted}
+                        />
+                      </Pressable>
                       <Text
                         style={[styles.personName, { color: theme.colors.textPrimary }]}
                         numberOfLines={1}
@@ -124,7 +166,20 @@ export default function SharedPeopleFilter({
                       </Text>
                     </View>
                     {editing && (
-                      <View style={[styles.paletteRow, { borderBottomColor: theme.colors.border }]}>
+                      <View
+                        style={[
+                          styles.paletteRow,
+                          {
+                            borderBottomColor: theme.colors.border,
+                            backgroundColor: theme.colors.background,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[styles.paletteHint, { color: theme.colors.textMuted }]}
+                        >
+                          Pick a color
+                        </Text>
                         <ScrollView
                           horizontal
                           showsHorizontalScrollIndicator={false}
@@ -158,7 +213,9 @@ export default function SharedPeopleFilter({
                             }}
                             style={styles.resetBtn}
                           >
-                            <Text style={[styles.resetText, { color: theme.colors.textSecondary }]}>
+                            <Text
+                              style={[styles.resetText, { color: theme.colors.textSecondary }]}
+                            >
                               Reset
                             </Text>
                           </Pressable>
@@ -171,7 +228,12 @@ export default function SharedPeopleFilter({
             )}
           </ScrollView>
 
-          <Pressable onPress={onManagePress} style={styles.manage} hitSlop={6}>
+          {/* Footer */}
+          <Pressable
+            onPress={onManagePress}
+            style={[styles.manage, { borderTopColor: theme.colors.border }]}
+            hitSlop={6}
+          >
             <Text style={[styles.manageText, { color: theme.accent }]}>
               Manage in Settings →
             </Text>
@@ -185,71 +247,92 @@ export default function SharedPeopleFilter({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
+    backgroundColor: "rgba(0,0,0,0.25)",
   },
-  sheet: {
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    paddingTop: 12,
-    paddingBottom: 24,
+  panel: {
+    position: "absolute",
+    right: 8,
+    left: 8,
+    borderRadius: 12,
+    borderWidth: StyleSheet.hairlineWidth,
+    overflow: "hidden",
     maxHeight: "75%",
+    // shadow
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 12,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  title: { fontSize: 18, fontWeight: "700" },
+  title: { fontSize: 16, fontWeight: "700" },
+  subtitle: { fontSize: 12, marginTop: 2 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 12,
   },
-  rowText: { fontSize: 16 },
+  rowText: { fontSize: 15, fontWeight: "500" },
+  rowSub: { fontSize: 12, marginTop: 2 },
   list: { maxHeight: 360 },
   empty: { padding: 20, textAlign: "center", fontStyle: "italic" },
   personRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     gap: 12,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  swatch: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    borderWidth: 2,
+  swatchBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderRadius: 16,
   },
-  personName: { flex: 1, fontSize: 16 },
+  swatchDot: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+  },
+  personName: { flex: 1, fontSize: 15, fontWeight: "500" },
   paletteRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingLeft: 20,
-    paddingRight: 8,
-    paddingVertical: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 8,
   },
-  palette: { flexDirection: "row", gap: 8, paddingVertical: 4 },
+  paletteHint: { fontSize: 12, fontWeight: "600", marginRight: 4 },
+  palette: { flexDirection: "row", gap: 8, paddingVertical: 2 },
   paletteSwatch: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     borderWidth: 3,
   },
-  resetBtn: { paddingHorizontal: 8, paddingVertical: 6 },
-  resetText: { fontSize: 13, fontWeight: "600" },
+  resetBtn: { paddingHorizontal: 8, paddingVertical: 4 },
+  resetText: { fontSize: 12, fontWeight: "600" },
   manage: {
-    paddingHorizontal: 20,
-    paddingTop: 14,
-    alignSelf: "flex-end",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    alignItems: "flex-end",
   },
-  manageText: { fontSize: 14, fontWeight: "600" },
+  manageText: { fontSize: 13, fontWeight: "600" },
 });

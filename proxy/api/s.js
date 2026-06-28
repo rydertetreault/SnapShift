@@ -10,6 +10,32 @@ const { getRedis } = require("./_lib/redis");
 const APP_STORE_URL = "https://apps.apple.com/app/id6769178607";
 const SHORT_ID_RE = /^[A-Za-z0-9]{4,16}$/;
 
+// Builds a descriptive title from a share payload so the iOS Share Sheet
+// preview cell and iMessage rich link show "Ryder's schedule — Week of Jun 22"
+// instead of the generic "Shared schedule".
+function titleForPayload(payload) {
+  try {
+    const name = payload && payload.name ? String(payload.name) : null;
+    const week = payload && payload.week ? String(payload.week) : null;
+    if (!name && !week) return "Shared schedule";
+    let datePart = "";
+    if (week && /^\d{4}-\d{2}-\d{2}$/.test(week)) {
+      const [y, m, d] = week.split("-").map(Number);
+      const months = [
+        "Jan","Feb","Mar","Apr","May","Jun",
+        "Jul","Aug","Sep","Oct","Nov","Dec",
+      ];
+      datePart = `${months[m - 1]} ${d}`;
+    }
+    if (name && datePart) return `${name}'s schedule — Week of ${datePart}`;
+    if (name) return `${name}'s schedule`;
+    if (datePart) return `Schedule — Week of ${datePart}`;
+    return "Shared schedule";
+  } catch {
+    return "Shared schedule";
+  }
+}
+
 function htmlPage(opts) {
   const {
     title = "Shared schedule",
@@ -22,6 +48,22 @@ function htmlPage(opts) {
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>SnapShift — ${escapeHtml(title)}</title>
+<link rel="icon" href="https://snap-shift-proxy.vercel.app/icon.png"/>
+<link rel="apple-touch-icon" href="https://snap-shift-proxy.vercel.app/icon.png"/>
+<meta name="description" content="${escapeHtml(sub)}"/>
+<!-- Open Graph (Messages, WhatsApp, Slack, etc.) -->
+<meta property="og:type" content="website"/>
+<meta property="og:site_name" content="SnapShift"/>
+<meta property="og:title" content="${escapeHtml(title)}"/>
+<meta property="og:description" content="${escapeHtml(sub)}"/>
+<meta property="og:image" content="https://snap-shift-proxy.vercel.app/icon.png"/>
+<meta property="og:image:width" content="1024"/>
+<meta property="og:image:height" content="1024"/>
+<!-- Twitter -->
+<meta name="twitter:card" content="summary"/>
+<meta name="twitter:title" content="${escapeHtml(title)}"/>
+<meta name="twitter:description" content="${escapeHtml(sub)}"/>
+<meta name="twitter:image" content="https://snap-shift-proxy.vercel.app/icon.png"/>
 <style>
   body{font-family:-apple-system,system-ui,sans-serif;margin:0;background:#f5f5f7;color:#1d1d1f;padding:24px}
   .card{max-width:420px;margin:24px auto;background:#fff;border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,.08)}

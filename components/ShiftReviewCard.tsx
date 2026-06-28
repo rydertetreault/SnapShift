@@ -81,10 +81,40 @@ export default function ShiftReviewCard({
           </View>
         </View>
 
-        {shift.department ? (
+        {shift.segments && shift.segments.length > 0 ? (
+          <View style={styles.detailSection}>
+            <Text style={[styles.detailHeader, { color: theme.colors.textMuted }]}>
+              Roles
+            </Text>
+            {shift.segments.map((seg, i) => (
+              <Text
+                key={`seg-${i}`}
+                style={[styles.detailLine, { color: theme.colors.textSecondary }]}
+              >
+                {seg.startTime} – {seg.endTime}   {seg.role}
+              </Text>
+            ))}
+          </View>
+        ) : shift.department ? (
           <Text style={[styles.department, { color: theme.accent }]}>
             {shift.department}
           </Text>
+        ) : null}
+
+        {shift.breaks && shift.breaks.length > 0 ? (
+          <View style={styles.detailSection}>
+            <Text style={[styles.detailHeader, { color: theme.colors.textMuted }]}>
+              Breaks
+            </Text>
+            {shift.breaks.map((b, i) => (
+              <Text
+                key={`brk-${i}`}
+                style={[styles.detailLine, { color: theme.colors.textSecondary }]}
+              >
+                {b.startTime} – {b.endTime}   {b.label ?? "Break"}
+              </Text>
+            ))}
+          </View>
         ) : null}
       </View>
     </View>
@@ -158,5 +188,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "500",
     marginTop: 6,
+  },
+  detailSection: {
+    marginTop: 8,
+  },
+  detailHeader: {
+    fontSize: 11,
+    fontWeight: "600",
+    textTransform: "uppercase",
+    marginBottom: 2,
+  },
+  detailLine: {
+    fontSize: 13,
+    paddingVertical: 1,
   },
 });

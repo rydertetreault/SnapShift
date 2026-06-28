@@ -63,6 +63,25 @@ export interface ScheduleEvent {
   // unless the user explicitly edits the event in SnapShift (which clears the
   // flag) or the SnapShift mirror calendar is recreated.
   mirrorOptOut?: boolean;
+  // Scheduled break windows within a work shift (e.g. Publix "Meal" breaks).
+  // ISO datetimes. Optional — only populated when the source schedule shows them.
+  breaks?: ShiftBreak[];
+  // Time-segmented role assignments within a single shift
+  // (e.g. Publix "Cashier 12-5, Customer Service Staff 5-9:15").
+  // Optional — only populated when the source schedule shows role changes mid-shift.
+  segments?: ShiftSegment[];
+}
+
+export interface ShiftBreak {
+  start: string; // ISO datetime
+  end: string;   // ISO datetime
+  label?: string; // e.g. "Meal", "Break"
+}
+
+export interface ShiftSegment {
+  start: string; // ISO datetime
+  end: string;   // ISO datetime
+  role: string;  // e.g. "Cashier", "Customer Service Staff"
 }
 
 export interface ExtractedShift {
@@ -74,4 +93,18 @@ export interface ExtractedShift {
   // True when the source schedule had no specific times (e.g. monthly marker grid).
   // startTime/endTime will be placeholder sentinel values in that case.
   allDay?: boolean;
+  breaks?: ExtractedBreak[];
+  segments?: ExtractedSegment[];
+}
+
+export interface ExtractedBreak {
+  startTime: string; // "11:30 AM"
+  endTime: string;
+  label?: string;
+}
+
+export interface ExtractedSegment {
+  startTime: string;
+  endTime: string;
+  role: string;
 }
