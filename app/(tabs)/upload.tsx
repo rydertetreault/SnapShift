@@ -181,7 +181,14 @@ export default function UploadScreen() {
           // For all-day shifts (marker-style schedules), startTime/endTime are
           // sentinel values ("12:00 AM" / "11:59 PM") so parseTimeString still works.
           const startDate = parseTimeString(shift.startTime, shift.date);
-        const endDate = parseTimeString(shift.endTime, shift.date);
+        let endDate = parseTimeString(shift.endTime, shift.date);
+        // Overnight shifts (e.g. "9:00 PM – 2:00 AM") parse with the end
+        // before the start when anchored to the same date. Roll the end
+        // forward a day so start < end always holds — EventKit (calendar
+        // mirroring) hard-errors on inverted ranges.
+        if (endDate <= startDate) {
+          endDate = addDays(endDate, 1);
+        }
 
         // Title: prefer joined role-segment names (e.g. "Cashier · Customer
         // Service Staff"), then single department, then fallbacks.

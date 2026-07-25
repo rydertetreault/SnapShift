@@ -93,18 +93,22 @@ export interface ExtractedShift {
   // True when the source schedule had no specific times (e.g. monthly marker grid).
   // startTime/endTime will be placeholder sentinel values in that case.
   allDay?: boolean;
+  // Break windows as human-readable times ("11:30 AM" / "12:00 PM") — converted
+  // to ISO datetimes when the shift is materialized into a ScheduleEvent.
   breaks?: ExtractedBreak[];
+  // Role segments as human-readable times. When present, the joined role names
+  // become the event title (e.g. "Cashier · Customer Service Staff").
   segments?: ExtractedSegment[];
 }
 
 export interface ExtractedBreak {
   startTime: string; // "11:30 AM"
-  endTime: string;
+  endTime: string;   // "12:00 PM"
   label?: string;
 }
 
 export interface ExtractedSegment {
-  startTime: string;
-  endTime: string;
+  startTime: string; // "12:00 PM"
+  endTime: string;   // "5:00 PM"
   role: string;
 }

@@ -50,6 +50,7 @@ export async function parseScheduleImage(
       endTime: s.endTime ?? "11:59 PM",
       department: s.department,
       allDay,
+      // Breaks/segments only make sense on timed shifts. Drop them for marker grids.
       breaks: !allDay && s.breaks?.length ? s.breaks : undefined,
       segments: !allDay && s.segments?.length ? s.segments : undefined,
     };

@@ -45,6 +45,8 @@ interface DaySection {
   data: ScheduleEvent[];
 }
 
+const LIST_BOTTOM_PADDING = 24;
+
 export default function CalendarScreen() {
   const theme = useTheme();
   const overrides = useCategoryOverrides();
@@ -234,7 +236,7 @@ const styles = StyleSheet.create({
   },
   eventListContent: {
     paddingTop: 8,
-    paddingBottom: 24,
+    paddingBottom: LIST_BOTTOM_PADDING,
   },
   emptyState: {
     flex: 1,

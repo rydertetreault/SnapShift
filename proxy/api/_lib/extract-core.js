@@ -27,9 +27,36 @@ const RESPONSE_JSON_SCHEMA = {
         properties: {
           dayOfWeek: { type: "string", description: "Full day name, e.g. Monday" },
           date: { type: "string", description: "YYYY-MM-DD if derivable from the image" },
+          dayOfMonth: { type: "integer", description: "1–31. The numeric day shown on this shift's card (e.g. the '20' next to 'Sat' in a Publix expanded view). Omit if not visible." },
           startTime: { type: "string", description: "h:mm AM/PM. OMIT if the source shows no specific times (e.g. monthly marker grid)." },
           endTime: { type: "string", description: "h:mm AM/PM. OMIT if the source shows no specific times." },
-          department: { type: "string" },
+          department: { type: "string", description: "Single role/department name. For shifts with multiple time-segmented roles, omit this and populate segments instead." },
+          breaks: {
+            type: "array",
+            description: "Scheduled break/meal/lunch windows shown for this shift.",
+            items: {
+              type: "object",
+              properties: {
+                startTime: { type: "string", description: "h:mm AM/PM" },
+                endTime: { type: "string", description: "h:mm AM/PM" },
+                label: { type: "string", description: "Literal label shown, e.g. Meal, Break, Lunch" },
+              },
+              required: ["startTime", "endTime"],
+            },
+          },
+          segments: {
+            type: "array",
+            description: "Time-segmented role assignments within the shift. Only emit when more than one role is shown for the same day.",
+            items: {
+              type: "object",
+              properties: {
+                startTime: { type: "string", description: "h:mm AM/PM" },
+                endTime: { type: "string", description: "h:mm AM/PM" },
+                role: { type: "string" },
+              },
+              required: ["startTime", "endTime", "role"],
+            },
+          },
         },
         required: ["dayOfWeek"],
       },

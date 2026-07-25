@@ -27,6 +27,8 @@ export default function EventCard({ event, onPress }: EventCardProps) {
   const startTime = format(parseISO(event.startTime), "h:mm a");
   const endTime = format(parseISO(event.endTime), "h:mm a");
 
+  // Compact summary of any scheduled breaks ("Break 11:30 AM – 12:00 PM" or
+  // "2 breaks"). Only renders when the source schedule captured break windows.
   let breaksSummary: string | null = null;
   if (event.breaks && event.breaks.length > 0) {
     if (event.breaks.length === 1) {

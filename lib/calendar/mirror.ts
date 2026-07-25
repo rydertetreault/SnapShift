@@ -18,6 +18,7 @@ import { getAllEvents } from "../storage";
 import { ScheduleEvent } from "../types";
 import { STORAGE_KEY } from "../constants";
 import { Sentry } from "../sentry";
+import { sanitizeRange } from "./sanitizeRange";
 
 const SNAPSHIFT_CALENDAR_TITLE = "SnapShift";
 const MIRROR_CAL_ID_KEY = "@snapshift/mirror-calendar-id";
@@ -92,10 +93,16 @@ export async function mirrorSnapShiftEvents(): Promise<void> {
     if (e.source !== "manual" && e.source !== "ai") continue;
     if (e.mirrorOptOut) continue; // user deleted it in iOS — respect that
 
+    // Repair inverted/equal ranges (overnight shifts anchored to one day);
+    // skip events whose dates can't be repaired rather than letting EventKit
+    // throw "The start date must be before the end date." (REACT-NATIVE-2).
+    const range = sanitizeRange(e.startTime, e.endTime);
+    if (!range) continue;
+
     const eventPayload: Calendar.Event = {
       title: e.title,
-      startDate: new Date(e.startTime),
-      endDate: new Date(e.endTime),
+      startDate: range.start,
+      endDate: range.end,
       notes: e.notes,
       allDay: e.allDay,
     } as any;
