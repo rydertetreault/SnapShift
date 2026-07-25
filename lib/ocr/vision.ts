@@ -26,6 +26,20 @@ export interface VisionShift {
   startTime?: string;
   endTime?: string;
   department?: string;
+  breaks?: VisionBreak[];
+  segments?: VisionSegment[];
+}
+
+export interface VisionBreak {
+  startTime: string;
+  endTime: string;
+  label?: string;
+}
+
+export interface VisionSegment {
+  startTime: string;
+  endTime: string;
+  role: string;
 }
 
 export interface VisionParseResult {

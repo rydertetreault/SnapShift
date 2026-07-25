@@ -178,12 +178,59 @@ export default function UploadScreen() {
         // For all-day shifts (marker-style schedules), startTime/endTime are
         // sentinel values ("12:00 AM" / "11:59 PM") so parseTimeString still works.
         const startDate = parseTimeString(shift.startTime, shift.date);
-        const endDate = parseTimeString(shift.endTime, shift.date);
+        let endDate = parseTimeString(shift.endTime, shift.date);
+        // Overnight shifts (e.g. "9:00 PM – 2:00 AM") parse with the end
+        // before the start when anchored to the same date. Roll the end
+        // forward a day so start < end always holds — EventKit (calendar
+        // mirroring) hard-errors on inverted ranges.
+        if (endDate <= startDate) {
+          endDate = addDays(endDate, 1);
+        }
+
+        // Title: prefer the joined role-segment names (e.g. "Cashier · Customer
+        // Service Staff"), fall back to single department, then "Work" / "Shift".
+        const segmentRoles =
+          shift.segments
+            ?.map((s) => s.role.trim())
+            .filter((r) => r.length > 0) ?? [];
         const title = shift.allDay
           ? "Work"
-          : shift.department
-            ? shift.department
-            : "Shift";
+          : segmentRoles.length > 0
+            ? segmentRoles.join(" · ")
+            : shift.department
+              ? shift.department
+              : "Shift";
+
+        // Materialize break/segment times into ISO datetimes anchored to the
+        // shift's date. Drop any that fail to parse rather than poisoning the
+        // event.
+        const breaks = shift.breaks
+          ?.map((b) => {
+            try {
+              return {
+                start: parseTimeString(b.startTime, shift.date).toISOString(),
+                end: parseTimeString(b.endTime, shift.date).toISOString(),
+                label: b.label,
+              };
+            } catch {
+              return null;
+            }
+          })
+          .filter((b): b is NonNullable<typeof b> => b !== null);
+
+        const segments = shift.segments
+          ?.map((s) => {
+            try {
+              return {
+                start: parseTimeString(s.startTime, shift.date).toISOString(),
+                end: parseTimeString(s.endTime, shift.date).toISOString(),
+                role: s.role,
+              };
+            } catch {
+              return null;
+            }
+          })
+          .filter((s): s is NonNullable<typeof s> => s !== null);
 
         return {
           id: Math.random().toString(36).substring(2, 10),
@@ -195,6 +242,8 @@ export default function UploadScreen() {
           source: "ai" as const,
           createdAt: new Date().toISOString(),
           allDay: shift.allDay,
+          breaks: breaks && breaks.length > 0 ? breaks : undefined,
+          segments: segments && segments.length > 0 ? segments : undefined,
         };
       });
 

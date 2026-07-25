@@ -55,6 +55,25 @@ export interface ScheduleEvent {
   // True when this event came from an iOS holiday/birthday/subscription calendar.
   // Such all-day events are excluded from shared "busy" blocks.
   subscribed?: boolean;
+  // Scheduled break windows within a work shift (e.g. Publix "Meal" breaks).
+  // ISO datetimes. Optional — only populated when the source schedule shows them.
+  breaks?: ShiftBreak[];
+  // Time-segmented role assignments within a single shift
+  // (e.g. Publix "Cashier 12-5, Customer Service Staff 5-9:15").
+  // Optional — only populated when the source schedule shows role changes mid-shift.
+  segments?: ShiftSegment[];
+}
+
+export interface ShiftBreak {
+  start: string; // ISO datetime
+  end: string;   // ISO datetime
+  label?: string; // e.g. "Meal", "Break"
+}
+
+export interface ShiftSegment {
+  start: string; // ISO datetime
+  end: string;   // ISO datetime
+  role: string;  // e.g. "Cashier", "Customer Service Staff"
 }
 
 export interface ExtractedShift {
@@ -66,4 +85,22 @@ export interface ExtractedShift {
   // True when the source schedule had no specific times (e.g. monthly marker grid).
   // startTime/endTime will be placeholder sentinel values in that case.
   allDay?: boolean;
+  // Break windows as human-readable times ("11:30 AM" / "12:00 PM") — converted
+  // to ISO datetimes when the shift is materialized into a ScheduleEvent.
+  breaks?: ExtractedBreak[];
+  // Role segments as human-readable times. When present, the joined role names
+  // become the event title (e.g. "Cashier · Customer Service Staff").
+  segments?: ExtractedSegment[];
+}
+
+export interface ExtractedBreak {
+  startTime: string; // "11:30 AM"
+  endTime: string;   // "12:00 PM"
+  label?: string;
+}
+
+export interface ExtractedSegment {
+  startTime: string; // "12:00 PM"
+  endTime: string;   // "5:00 PM"
+  role: string;
 }

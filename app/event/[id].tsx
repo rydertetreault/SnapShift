@@ -316,6 +316,38 @@ export default function EventDetailScreen() {
             {event.allDay ? "All day" : `${displayStart} - ${displayEnd}`}
           </Text>
 
+          {event.segments && event.segments.length > 0 ? (
+            <View style={styles.breakdownSection}>
+              <Text style={[styles.label, { color: theme.colors.textMuted }]}>Roles</Text>
+              {event.segments.map((seg, i) => (
+                <View key={`seg-${i}`} style={styles.breakdownRow}>
+                  <Text style={[styles.breakdownTime, { color: theme.colors.textSecondary }]}>
+                    {format(parseISO(seg.start), "h:mm a")} – {format(parseISO(seg.end), "h:mm a")}
+                  </Text>
+                  <Text style={[styles.breakdownLabel, { color: theme.colors.textPrimary }]}>
+                    {seg.role}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
+          {event.breaks && event.breaks.length > 0 ? (
+            <View style={styles.breakdownSection}>
+              <Text style={[styles.label, { color: theme.colors.textMuted }]}>Breaks</Text>
+              {event.breaks.map((br, i) => (
+                <View key={`brk-${i}`} style={styles.breakdownRow}>
+                  <Text style={[styles.breakdownTime, { color: theme.colors.textSecondary }]}>
+                    {format(parseISO(br.start), "h:mm a")} – {format(parseISO(br.end), "h:mm a")}
+                  </Text>
+                  <Text style={[styles.breakdownLabel, { color: theme.colors.textPrimary }]}>
+                    {br.label ?? "Break"}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+
           {event.notes ? (
             <View style={styles.notesSection}>
               <Text style={[styles.label, { color: theme.colors.textMuted }]}>Notes</Text>
@@ -440,6 +472,23 @@ const styles = StyleSheet.create({
   notesText: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  breakdownSection: {
+    marginTop: 20,
+  },
+  breakdownRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 4,
+  },
+  breakdownTime: {
+    fontSize: 14,
+    width: 150,
+  },
+  breakdownLabel: {
+    fontSize: 15,
+    fontWeight: "500",
+    flex: 1,
   },
   body: {
     fontSize: 14,

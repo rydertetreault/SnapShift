@@ -16,6 +16,20 @@ export default function EventCard({ event, onPress }: EventCardProps) {
   const startTime = format(parseISO(event.startTime), "h:mm a");
   const endTime = format(parseISO(event.endTime), "h:mm a");
 
+  // Compact summary of any scheduled breaks ("Break 11:30 AM – 12:00 PM" or
+  // "2 breaks"). Only renders when the source schedule captured break windows.
+  let breaksSummary: string | null = null;
+  if (event.breaks && event.breaks.length > 0) {
+    if (event.breaks.length === 1) {
+      const b = event.breaks[0];
+      const bStart = format(parseISO(b.start), "h:mm a");
+      const bEnd = format(parseISO(b.end), "h:mm a");
+      breaksSummary = `${b.label ?? "Break"} ${bStart} – ${bEnd}`;
+    } else {
+      breaksSummary = `${event.breaks.length} breaks`;
+    }
+  }
+
   return (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: theme.colors.surface }]}
@@ -30,6 +44,11 @@ export default function EventCard({ event, onPress }: EventCardProps) {
         <Text style={[styles.time, { color: theme.colors.textSecondary }]}>
           {event.allDay ? "All day" : `${startTime} - ${endTime}`}
         </Text>
+        {breaksSummary ? (
+          <Text style={[styles.breaks, { color: theme.colors.textMuted }]}>
+            {breaksSummary}
+          </Text>
+        ) : null}
         <Text style={[styles.category, { color: category.color }]}>
           {category.name}
         </Text>
@@ -67,6 +86,10 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 14,
+    marginBottom: 2,
+  },
+  breaks: {
+    fontSize: 12,
     marginBottom: 2,
   },
   category: {
